@@ -24,6 +24,13 @@ export const clearSessionFlag = () => {
     /* ignore */
   }
 };
+function hasSessionFlag(): boolean {
+  try {
+    return !!localStorage.getItem(SESSION_KEY);
+  } catch {
+    return false;
+  }
+}
 
 export class ApiError extends Error {
   status: number;
@@ -38,6 +45,7 @@ export class ApiError extends Error {
 async function request<T>(
   path: string,
   opts: { method?: string; body?: unknown } = {},
+  retried = false,
 ): Promise<T> {
   const headers: Record<string, string> = {};
   let body: BodyInit | undefined;
@@ -64,6 +72,13 @@ async function request<T>(
   } catch {
     throw new ApiError(res.status, 'Lỗi máy chủ.');
   }
+  // Access token hết hạn giữa chừng (15 phút) -> refresh 1 lần rồi thử lại.
+  // Không retry cho /auth/* (lỗi login phải hiện ra) và không retry khi chưa
+  // từng login (tránh 401 noise).
+  if (res.status === 401 && !retried && !path.startsWith('/auth/') && hasSessionFlag()) {
+    const t = await doRefresh();
+    if (t) return request<T>(path, opts, true);
+  }
   if (!res.ok || !json.success) {
     throw new ApiError(res.status, json.message || 'Có lỗi xảy ra.', json.errors);
   }
@@ -84,22 +99,39 @@ export const api = {
 export async function tryRefresh(): Promise<string | null> {
   // No session flag (logged out / never logged in) -> skip the request entirely
   // so logged-out visitors don't get a 401 noise in the console.
-  try {
-    if (!localStorage.getItem(SESSION_KEY)) return null;
-  } catch {
-    return null;
+  if (!hasSessionFlag()) return null;
+  return doRefresh();
+}
+
+// Single-flight refresh: các request 401 đồng thời dùng chung 1 POST refresh.
+// Bắt buộc vì server ROTATE refresh token (revoke cũ + cấp mới) — 2 POST song
+// song sẽ tự giết nhau (cái sau 401).
+let refreshPromise: Promise<string | null> | null = null;
+function doRefresh(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const res = await fetch(`${BASE}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+        if (res.status === 401) {
+          // Refresh token đã chết (revoke/hết hạn/DB reseed) -> tự xóa flag để
+          // các lần tải sau không 401 nữa. Lỗi mạng thì giữ flag, thử lại sau.
+          clearSessionFlag();
+          return null;
+        }
+        if (!res.ok) return null;
+        const json = (await res.json()) as Envelope<{ accessToken: string }>;
+        if (!json.success) return null;
+        accessToken = json.data.accessToken;
+        return accessToken;
+      } catch {
+        return null;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
   }
-  try {
-    const res = await fetch(`${BASE}/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as Envelope<{ accessToken: string }>;
-    if (!json.success) return null;
-    accessToken = json.data.accessToken;
-    return accessToken;
-  } catch {
-    return null;
-  }
+  return refreshPromise;
 }
