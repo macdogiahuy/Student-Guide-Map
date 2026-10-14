@@ -1,0 +1,106 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-primary: #ff6b35;
+  --color-primary-600: #e85a26;
+  --color-primary-50: #fff0e9;
+  --color-secondary: #10243e;
+  --color-accent: #06d6a0;
+  --color-bg: #fff9f5;
+  --color-surface: #ffffff;
+  --color-surface-2: #fdf4ee;
+  --color-ink: #1b1b1f;
+  --color-muted: #6b7280;
+  --color-line: #ede7e1;
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  --font-sans: 'Be Vietnam Pro', Inter, system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* vietmap gl css is imported on demand in the map component */
+
+.btn,
+.btn-primary,
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+.btn:disabled,
+.btn-primary:disabled,
+.btn-ghost:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.btn-primary {
+  background: var(--color-primary-600);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--color-primary);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-secondary);
+  border: 1px solid var(--color-line);
+}
+.btn-ghost:hover {
+  background: var(--color-surface-2);
+}
+
+.input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.2);
+}
+.input::placeholder {
+  color: var(--color-muted);
+}
+
+.card {
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 9999px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+}
