@@ -106,7 +106,23 @@ export class LocationService {
   }
 
   async getDetail(id: string, viewer: AuthUser | undefined, near?: { lat: number; lng: number }) {
-    const loc = await locationRepository.findById(id);
+    // All three are independent (keyed by id) -> one parallel batch instead of
+    // 3 sequential roundtrips.
+    const [loc, breakdownRaw, social] = await Promise.all([
+      locationRepository.findById(id),
+      locationRepository.countReviewsByRating(id),
+      viewer
+        ? Promise.all([
+            prisma.favorite.findUnique({
+              where: { userId_locationId: { userId: viewer.id, locationId: id } },
+            }),
+            prisma.review.findUnique({
+              where: { userId_locationId: { userId: viewer.id, locationId: id } },
+              include: { reply: true },
+            }),
+          ])
+        : Promise.resolve([null, null] as const),
+    ]);
     if (!loc) throw AppError.notFound('Không tìm thấy địa điểm.');
     const canSee =
       loc.status === 'APPROVED' &&
@@ -119,25 +135,12 @@ export class LocationService {
       .update({ where: { id }, data: { viewCount: { increment: 1 } } })
       .catch(() => undefined);
 
-    const breakdownRaw = await locationRepository.countReviewsByRating(id);
     const breakdown: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     for (const row of breakdownRaw) breakdown[row.rating] = row._count;
 
-    let isFavorite = false;
-    let myReview = null;
-    if (viewer) {
-      const [fav, rev] = await Promise.all([
-        prisma.favorite.findUnique({
-          where: { userId_locationId: { userId: viewer.id, locationId: id } },
-        }),
-        prisma.review.findUnique({
-          where: { userId_locationId: { userId: viewer.id, locationId: id } },
-          include: { reply: true },
-        }),
-      ]);
-      isFavorite = Boolean(fav);
-      myReview = rev && rev.status !== 'DELETED' ? rev : null;
-    }
+    const [fav, rev] = social;
+    const isFavorite = Boolean(fav);
+    const myReview = rev && rev.status !== 'DELETED' ? rev : null;
 
     const distanceKm =
       near ? haversineKm(near.lat, near.lng, loc.lat, loc.lng) : null;

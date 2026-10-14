@@ -166,20 +166,17 @@ export class LocationRepository {
     }
 
     const whereOuter = Prisma.join(outerConds, ' AND ');
+    // Single roundtrip: window COUNT(*) OVER() avoids a second count query +
+    // interactive transaction (matters a lot on high-latency links).
     const rowsQ = Prisma.sql`
-      SELECT * FROM (${inner}) t
+      SELECT *, COUNT(*) OVER() AS "total" FROM (${inner}) t
       WHERE ${whereOuter}
       ORDER BY ${ORDER_SQL[p.sort]}
       LIMIT ${p.limit}::int OFFSET ${(p.page - 1) * p.limit}::int
     `;
-    const countQ = Prisma.sql`SELECT COUNT(*)::int AS total FROM (${inner}) t WHERE ${whereOuter}`;
 
-    const [rows, count] = await prisma.$transaction([
-      prisma.$queryRaw<RawLocationRow[]>(rowsQ),
-      prisma.$queryRaw<{ total: number }[]>(countQ),
-    ]);
-
-    return { items: rows, total: Number(count[0]?.total ?? 0) };
+    const rows = await prisma.$queryRaw<(RawLocationRow & { total: number | bigint })[]>(rowsQ);
+    return { items: rows, total: Number(rows[0]?.total ?? 0) };
   }
 
   findById(id: string) {

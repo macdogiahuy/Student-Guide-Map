@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
-import MapView, { DEFAULT_CENTER } from '../components/MapView';
+import { DEFAULT_CENTER } from '../lib/center';
+
+// vietmap-gl is heavy — split it out of the main bundle.
+const MapView = lazy(() => import('../components/MapView'));
 
 type Vehicle = 'motorcycle' | 'car' | 'walking';
 
@@ -164,13 +167,15 @@ export default function Directions() {
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-surface-2">
       {dest && (
-        <MapView
-          pins={pins}
-          selectedId={dest.id}
-          route={route?.polyline}
-          className="absolute inset-0 !rounded-none h-full w-full"
-          showUserLocation
-        />
+        <Suspense fallback={<div className="absolute inset-0 grid place-items-center text-sm text-muted">Đang tải bản đồ…</div>}>
+          <MapView
+            pins={pins}
+            selectedId={dest.id}
+            route={route?.polyline}
+            className="absolute inset-0 !rounded-none h-full w-full"
+            showUserLocation
+          />
+        </Suspense>
       )}
 
       {/* ── Top navigation banner (Vietmap Live Map style) ── */}

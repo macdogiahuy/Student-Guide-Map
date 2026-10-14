@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import type { Category, LocationListItem, Paged } from '../lib/types';
 import LocationCard from '../components/LocationCard';
-import MapView, { DEFAULT_CENTER } from '../components/MapView';
+import { DEFAULT_CENTER } from '../lib/center';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+
+// vietmap-gl is heavy (~700KB) — split it out of the main bundle.
+const MapView = lazy(() => import('../components/MapView'));
 
 const SORTS = [
   { value: 'nearest', label: 'Gần nhất' },
@@ -276,13 +279,17 @@ export default function Home() {
               ))}
             </div>
             <div className="lg:col-span-3">
-              <MapView
-                pins={pins}
-                selectedId={selected}
-                onPinClick={(id) => setSelected(id)}
-                onMapMove={setCenter}
-                className="h-[70vh]"
-              />
+              <Suspense
+                fallback={<div className="grid place-items-center bg-surface-2 rounded-2xl h-[70vh] text-sm text-muted">Đang tải bản đồ…</div>}
+              >
+                <MapView
+                  pins={pins}
+                  selectedId={selected}
+                  onPinClick={(id) => setSelected(id)}
+                  onMapMove={setCenter}
+                  className="h-[70vh]"
+                />
+              </Suspense>
               {selected && (
                 <div className="mt-3">
                   <button

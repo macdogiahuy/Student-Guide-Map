@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { LocationDetail, Review } from '../lib/types';
-import MapView from '../components/MapView';
-import { OpenBadge } from '../components/LocationCard';
 import { useAuth } from '../context/AuthContext';
+import { OpenBadge } from '../components/LocationCard';
+
+// vietmap-gl is heavy — split it out of the main bundle.
+const MapView = lazy(() => import('../components/MapView'));
 
 const DAY_LABEL: Record<string, string> = {
   MON: 'Thứ 2',
@@ -174,11 +176,13 @@ export default function LocationDetailPage() {
 
         {/* Map + promos */}
         <div className="space-y-4">
-          <MapView
-            pins={[{ id: loc.id, lng: loc.lng, lat: loc.lat, label: '📍' }]}
-            selectedId={loc.id}
-            className="h-64"
-          />
+          <Suspense fallback={<div className="grid place-items-center bg-surface-2 rounded-2xl h-64 text-sm text-muted">Đang tải bản đồ…</div>}>
+            <MapView
+              pins={[{ id: loc.id, lng: loc.lng, lat: loc.lat, label: '📍' }]}
+              selectedId={loc.id}
+              className="h-64"
+            />
+          </Suspense>
           {loc.promotions.length > 0 && (
             <div className="card p-4">
               <h2 className="font-bold text-base mb-2">🎉 Ưu đãi đang áp dụng</h2>

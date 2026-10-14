@@ -1,5 +1,6 @@
 import path from 'node:path';
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -12,6 +13,7 @@ export function createApp() {
   const app = express();
 
   app.set('trust proxy', 1);
+  app.use(compression());
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(
     cors({

@@ -4,7 +4,9 @@ import '@vietmap/vietmap-gl-js/dist/vietmap-gl.css';
 
 const VIETMAP_KEY = import.meta.env.VITE_VIETMAP_API_KEY as string | undefined;
 
-export const DEFAULT_CENTER: [number, number] = [108.2604, 15.9675]; // FPT University Đà Nẵng
+import { DEFAULT_CENTER } from '../lib/center';
+
+export { DEFAULT_CENTER };
 export const VIETMAP_STYLE = `https://maps.vietmap.vn/maps/styles/tm/style.json?apikey=${VIETMAP_KEY ?? ''}`;
 
 /** Chuyển mọi request Vietmap sang proxy Vite same-origin để tránh CORS. */
