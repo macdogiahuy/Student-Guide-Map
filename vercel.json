@@ -1,14 +1,16 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm ci && npm ci --prefix web",
-  "buildCommand": "npx prisma migrate deploy --schema server/prisma/schema.prisma && npx prisma generate --schema server/prisma/schema.prisma && npm run build --workspace server && npm run build --prefix web",
-  "outputDirectory": "web/dist",
+  "services": {
+    "web": {
+      "root": "web/"
+    },
+    "server": {
+      "root": "server/"
+    }
+  },
   "rewrites": [
-    { "source": "/api/v1/:path*", "destination": "/api/index" },
-    { "source": "/vietmap/:path*", "destination": "https://maps.vietmap.vn/:path*" },
-    { "source": "/((?!api/|vietmap/|.*\\..*).*)", "destination": "/index.html" }
-  ],
-  "functions": {
-    "api/index.ts": { "maxDuration": 30 }
-  }
+    { "source": "/api/:path*", "destination": { "service": "server" } },
+    { "source": "/vietmap/:path*", "destination": { "service": "server" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ]
 }
