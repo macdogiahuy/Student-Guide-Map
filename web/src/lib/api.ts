@@ -8,6 +8,23 @@ export const setToken = (t: string | null) => {
 };
 export const getToken = () => accessToken;
 
+/** Local flag marking "this browser has logged in before". Cleared on logout. */
+const SESSION_KEY = 'sgm_session';
+export const setSessionFlag = () => {
+  try {
+    localStorage.setItem(SESSION_KEY, '1');
+  } catch {
+    /* storage unavailable — refresh will just 401 once */
+  }
+};
+export const clearSessionFlag = () => {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
+};
+
 export class ApiError extends Error {
   status: number;
   errors: string[];
@@ -65,6 +82,13 @@ export const api = {
 
 /** Attempt silent refresh; returns new access token or null. */
 export async function tryRefresh(): Promise<string | null> {
+  // No session flag (logged out / never logged in) -> skip the request entirely
+  // so logged-out visitors don't get a 401 noise in the console.
+  try {
+    if (!localStorage.getItem(SESSION_KEY)) return null;
+  } catch {
+    return null;
+  }
   try {
     const res = await fetch(`${BASE}/auth/refresh`, {
       method: 'POST',

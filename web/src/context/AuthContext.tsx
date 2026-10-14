@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { api, setToken, tryRefresh } from '../lib/api';
+import { api, clearSessionFlag, setSessionFlag, setToken, tryRefresh } from '../lib/api';
 import type { User } from '../lib/types';
 
 interface AuthState {
@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
     setToken(data.accessToken);
+    setSessionFlag();
     setUser(data.user);
     return data.user;
   }, []);
@@ -81,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await api.post('/auth/logout').catch(() => undefined);
     setToken(null);
+    clearSessionFlag();
     setUser(null);
   }, []);
 
