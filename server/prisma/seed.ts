@@ -14,6 +14,11 @@ const DEFAULT_HOURS: { day: DayOfWeek; openTime: string; closeTime: string; isCl
 ).map((day) => ({ day, openTime: '07:00', closeTime: '22:00', isClosed: day === 'SUN' }));
 
 /** Write a simple SVG placeholder image so cards are not empty in dev. */
+function imgUrl(file: string): string {
+  // Prod seed: point image URLs at object storage (Vercel Blob) instead of local /uploads.
+  const base = (process.env.SEED_IMAGE_BASE_URL ?? '').replace(/\/$/, '');
+  return base ? `${base}/${file}` : `/uploads/${file}`;
+}
 function makePlaceholder(name: string, from: string, to: string): string {
   const dir = path.resolve(process.cwd(), 'uploads');
   fs.mkdirSync(dir, { recursive: true });
@@ -27,7 +32,7 @@ function makePlaceholder(name: string, from: string, to: string): string {
   <text x="50%" y="52%" font-family="sans-serif" font-size="42" fill="#ffffff" text-anchor="middle" opacity="0.95">${name}</text>
 </svg>`;
   fs.writeFileSync(file, svg, 'utf8');
-  return `/uploads/seed-${name}.svg`;
+  return imgUrl(`seed-${name}.svg`);
 }
 
 async function main() {
@@ -194,7 +199,7 @@ async function main() {
         approvedAt: new Date(Date.now() - 10 * 86400_000),
         openingHours: { create: DEFAULT_HOURS },
         images: {
-          create: [{ url: '/uploads/seed-trees-coffee.jpg', isPrimary: true, sortOrder: 0 }],
+          create: [{ url: imgUrl('seed-trees-coffee.jpg'), isPrimary: true, sortOrder: 0 }],
         },
       },
     });
@@ -226,7 +231,7 @@ async function main() {
   function seedImage(key: string, name: string, from: string, to: string): string {
     const dir = path.resolve(process.cwd(), 'uploads');
     const jpg = path.join(dir, `${key}.jpg`);
-    if (fs.existsSync(jpg)) return `/uploads/${key}.jpg`;
+    if (fs.existsSync(jpg)) return imgUrl(`${key}.jpg`);
     return makePlaceholder(name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 18) || key, from, to);
   }
 
