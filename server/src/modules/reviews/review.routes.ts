@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { reviewController } from './review.controller.js';
+import { edgeCache } from '../../middleware/edgeCache.js';
 import { validate } from '../../middleware/validate.js';
 import { requireAuth, requireRole } from '../../middleware/auth.js';
 import { writeLimiter } from '../../middleware/rateLimit.js';
@@ -8,7 +9,7 @@ import { createReviewSchema, replySchema, reviewListQuery, updateReviewSchema } 
 
 export const reviewRoutes = Router();
 
-reviewRoutes.get('/', validate(reviewListQuery, 'query'), reviewController.list);
+reviewRoutes.get('/', validate(reviewListQuery, 'query'), edgeCache(30), reviewController.list);
 reviewRoutes.get('/mine', requireAuth, reviewController.mine);
 
 reviewRoutes.post(

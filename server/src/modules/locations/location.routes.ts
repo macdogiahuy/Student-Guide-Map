@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { locationController } from './location.controller.js';
+import { edgeCache } from '../../middleware/edgeCache.js';
 import { validate } from '../../middleware/validate.js';
 import { optionalAuth, requireAuth, requireRole } from '../../middleware/auth.js';
 import { writeLimiter } from '../../middleware/rateLimit.js';
@@ -15,10 +16,10 @@ import {
 
 export const locationRoutes = Router();
 
-locationRoutes.get('/', optionalAuth, validate(searchQuerySchema, 'query'), locationController.search);
+locationRoutes.get('/', optionalAuth, validate(searchQuerySchema, 'query'), edgeCache(60), locationController.search);
 locationRoutes.get('/compare', locationController.compare);
-locationRoutes.get('/:id/route', locationController.route);
-locationRoutes.get('/:id', optionalAuth, locationController.getDetail);
+locationRoutes.get('/:id/route', edgeCache(300), locationController.route);
+locationRoutes.get('/:id', optionalAuth, edgeCache(60), locationController.getDetail);
 
 // writes
 locationRoutes.post(

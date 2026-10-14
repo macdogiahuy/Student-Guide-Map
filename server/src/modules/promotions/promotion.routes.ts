@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { promotionController } from './promotion.controller.js';
+import { edgeCache } from '../../middleware/edgeCache.js';
 import { validate } from '../../middleware/validate.js';
 import { requireAuth, requireRole } from '../../middleware/auth.js';
 import { writeLimiter } from '../../middleware/rateLimit.js';
@@ -12,9 +13,9 @@ import {
 
 export const promotionRoutes = Router();
 
-promotionRoutes.get('/', validate(publicPromotionQuery, 'query'), promotionController.listPublic);
+promotionRoutes.get('/', validate(publicPromotionQuery, 'query'), edgeCache(60), promotionController.listPublic);
 promotionRoutes.get('/mine', requireAuth, requireRole('STORE_OWNER', 'ADMIN'), promotionController.listMine);
-promotionRoutes.get('/:id', promotionController.getPublic);
+promotionRoutes.get('/:id', edgeCache(60), promotionController.getPublic);
 promotionRoutes.post(
   '/',
   requireAuth,
