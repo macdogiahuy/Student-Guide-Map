@@ -2,6 +2,7 @@
   "name": "student-guide-map",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "description": "Student Guide Map - discover places around FPT University campus",
   "workspaces": [
     "server"
