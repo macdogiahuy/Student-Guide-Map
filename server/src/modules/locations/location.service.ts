@@ -320,15 +320,17 @@ export class LocationService {
     await this.assertAccess(actor, id);
     if (!files.length) throw AppError.badRequest('Chưa chọn tập ảnh.');
     const count = await prisma.locationImage.count({ where: { locationId: id } });
-    const created = await prisma.locationImage.createMany({
-      data: files.map((f, i) => ({
+    const { storeUploadedFile } = await import('../../lib/upload.js');
+    const urls: string[] = [];
+    for (const f of files) urls.push(await storeUploadedFile(f, `locations/${id}`));
+    await prisma.locationImage.createMany({
+      data: urls.map((url, i) => ({
         locationId: id,
-        url: `/uploads/${f.filename}`,
+        url,
         isPrimary: count === 0 && i === 0,
         sortOrder: count + i,
       })),
     });
-    void created;
     return prisma.locationImage.findMany({
       where: { locationId: id },
       orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
@@ -341,7 +343,7 @@ export class LocationService {
     if (!img || img.locationId !== id) throw AppError.notFound('Không tìm thấy ảnh.');
     await prisma.locationImage.delete({ where: { id: imageId } });
     const { removeUploadFile } = await import('../../lib/upload.js');
-    removeUploadFile(img.url);
+    await removeUploadFile(img.url);
     return { id: imageId };
   }
 
