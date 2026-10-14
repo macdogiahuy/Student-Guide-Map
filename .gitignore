@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
+/.env.vercel
 server/.env
 server/uploads/
 *.log
