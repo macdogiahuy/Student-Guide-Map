@@ -38,6 +38,9 @@ export function createApp() {
   // Reaches this service via top-level rewrite /vietmap/* -> server service;
   // Express sees the original path, so mount here. Forwards path+query
   // transparently (client keeps its own tilemap apikey, same as dev).
+  // Tiered edge caching: tile/font/sprite paths are versioned upstream, so
+  // they cache long; style.json caches short. Query (apikey) is part of the
+  // edge cache key. Errors are never cached.
   app.use('/vietmap', async (req, res, next) => {
     try {
       const upstream = await fetch(`https://maps.vietmap.vn${req.url}`, {
@@ -45,10 +48,20 @@ export function createApp() {
       });
       res.status(upstream.status);
       upstream.headers.forEach((v, k) => {
-        if (!['content-encoding', 'content-length', 'transfer-encoding', 'connection'].includes(k.toLowerCase())) {
+        if (!['content-encoding', 'content-length', 'transfer-encoding', 'connection', 'cache-control', 'set-cookie'].includes(k.toLowerCase())) {
           res.setHeader(k, v);
         }
       });
+      if (upstream.ok) {
+        const p = req.path;
+        if (/^\/(maps\/tiles|maps\/fonts|.*sprite)/.test(p)) {
+          res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+        } else {
+          res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
+        }
+      } else {
+        res.setHeader('Cache-Control', 'private, no-store');
+      }
       if (!upstream.body) return res.end();
       res.send(Buffer.from(await upstream.arrayBuffer()));
     } catch {

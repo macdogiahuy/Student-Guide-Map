@@ -1,8 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["sin1"],
   "installCommand": "npm ci --include=dev && npm ci --prefix web --include=dev",
   "buildCommand": "npx prisma generate --schema server/prisma/schema.prisma && npm run build --workspace server && npm run build --prefix web",
   "outputDirectory": "web/dist",
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/api/v1/:path*", "destination": "/api/index" },
     { "source": "/vietmap/:path*", "destination": "/api/index" },

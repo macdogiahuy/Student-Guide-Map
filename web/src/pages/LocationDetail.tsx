@@ -32,9 +32,12 @@ export default function LocationDetailPage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const data = await api.get<LocationDetail>(`/locations/${id}`);
+    // Detail + reviews are independent — fetch in parallel instead of waterfall.
+    const [data, rv] = await Promise.all([
+      api.get<LocationDetail>(`/locations/${id}`),
+      api.get<{ items: Review[] }>(`/reviews?locationId=${id}&limit=20`),
+    ]);
     setLoc(data);
-    const rv = await api.get<{ items: Review[] }>(`/reviews?locationId=${id}&limit=20`);
     setReviews(rv.items);
   }, [id]);
 
@@ -95,7 +98,7 @@ export default function LocationDetailPage() {
             className={`rounded-xl bg-surface-2 overflow-hidden aspect-[4/3] ${i === 0 ? 'col-span-2 row-span-2 aspect-square md:aspect-[4/3]' : ''}`}
           >
             {img.url ? (
-              <img src={img.url} alt={loc.name} className="size-full object-cover" />
+              <img src={img.url} alt={loc.name} className="size-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
             ) : (
               <div className="size-full grid place-items-center text-3xl">{loc.category.icon || '📍'}</div>
             )}
