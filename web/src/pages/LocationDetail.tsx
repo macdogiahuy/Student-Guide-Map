@@ -30,6 +30,10 @@ export default function LocationDetailPage() {
   const [reportType, setReportType] = useState('WRONG_ADDRESS');
   const [reportContent, setReportContent] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editRating, setEditRating] = useState(5);
+  const [editComment, setEditComment] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     // Detail + reviews are independent — fetch in parallel instead of waterfall.
@@ -68,6 +72,33 @@ export default function LocationDetailPage() {
     }
   };
 
+  const startEdit = (r: Review) => {
+    setEditingId(r.id);
+    setEditRating(r.rating);
+    setEditComment(r.comment ?? '');
+  };
+
+  const saveEdit = async (reviewId: string) => {
+    try {
+      await api.patch(`/reviews/${reviewId}`, { rating: editRating, comment: editComment || null });
+      setMsg('Đã cập nhật đánh giá!');
+      setEditingId(null);
+      load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Lỗi');
+    }
+  };
+
+  const removeReview = async (reviewId: string) => {
+    try {
+      await api.del(`/reviews/${reviewId}`);
+      setMsg('Đã xóa đánh giá.');
+      setDeletingId(null);
+      load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Lỗi');
+    }
+  };
   const submitReport = async () => {
     if (!user) return navigate('/login');
     try {
@@ -259,7 +290,10 @@ export default function LocationDetailPage() {
         )}
 
         <div className="space-y-4">
-          {reviews.map((r) => (
+          {reviews.map((r) => {
+            const mine = !!user && r.user.id === user.id;
+            const editing = editingId === r.id;
+            return (
             <div key={r.id} className="border-b border-line last:border-0 pb-3">
               <div className="flex items-center gap-2 text-sm">
                 <span className="size-8 rounded-full bg-primary-50 text-primary-600 grid place-items-center font-bold">
@@ -270,8 +304,73 @@ export default function LocationDetailPage() {
                 <span className="text-xs text-muted ml-auto">
                   {new Date(r.createdAt).toLocaleDateString('vi-VN')}
                 </span>
+                {mine && !editing && (
+                  <span className="flex gap-1 shrink-0">
+                    <button
+                      className="text-xs font-semibold text-primary-600 hover:underline"
+                      onClick={() => startEdit(r)}
+                    >
+                      Sửa
+                    </button>
+                    <span className="text-line">|</span>
+                    <button
+                      className="text-xs font-semibold text-error hover:underline"
+                      onClick={() => setDeletingId(r.id)}
+                    >
+                      Xóa
+                    </button>
+                  </span>
+                )}
               </div>
-              {r.comment && <p className="mt-1.5 text-sm">{r.comment}</p>}
+              {editing ? (
+                <div className="mt-2 ml-10 border border-line rounded-xl p-3 space-y-2 bg-surface">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <button
+                        key={s}
+                        className={`text-2xl ${s <= editRating ? 'text-warning' : 'text-line'}`}
+                        onClick={() => setEditRating(s)}
+                        aria-label={`${s} sao`}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    maxLength={500}
+                    placeholder="Nhận xét (không bắt buộc)"
+                    value={editComment}
+                    onChange={(e) => setEditComment(e.target.value)}
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button className="btn-ghost text-sm" onClick={() => setEditingId(null)}>
+                      Hủy
+                    </button>
+                    <button className="btn-primary text-sm" onClick={() => saveEdit(r.id)}>
+                      Lưu
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {r.comment && <p className="mt-1.5 text-sm">{r.comment}</p>}
+                  {deletingId === r.id && (
+                    <div className="mt-2 ml-10 text-sm bg-error/5 border border-error/30 rounded-xl p-3">
+                      <p>Xóa đánh giá này? Hành động không thể hoàn tác.</p>
+                      <div className="flex gap-2 justify-end mt-2">
+                        <button className="btn-ghost text-sm" onClick={() => setDeletingId(null)}>
+                          Giữ lại
+                        </button>
+                        <button className="btn-primary text-sm !bg-error" onClick={() => removeReview(r.id)}>
+                          Xóa đánh giá
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
               {r.reply && (
                 <div className="mt-2 ml-6 bg-surface-2 rounded-xl p-2.5 text-sm">
                   <span className="font-semibold text-primary-600">
@@ -282,7 +381,8 @@ export default function LocationDetailPage() {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
           {reviews.length === 0 && <p className="text-sm text-muted">Chưa có đánh giá nào.</p>}
         </div>
       </section>
