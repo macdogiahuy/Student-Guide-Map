@@ -477,6 +477,20 @@ export class LocationService {
       { lat: loc.lat, lng: loc.lng },
     );
     const routeEndpoint = polyline[polyline.length - 1];
+    const finalApproach = {
+      lat: loc.lat,
+      lng: loc.lng,
+    };
+    const finalApproachMeters = Math.round(
+      haversineKm(finalApproach.lat, finalApproach.lng, routeEndpoint[1], routeEndpoint[0]) * 1000,
+    );
+    // Vietmap snaps destinations inside campuses to the nearest routable road.
+    // Keep the road route, then connect its endpoint to the requested marker so
+    // the rendered route reaches the actual place the user selected.
+    const displayPolyline =
+      finalApproachMeters > 20
+        ? [...polyline, [finalApproach.lng, finalApproach.lat] as Coordinate]
+        : polyline;
 
     // sign code → icon + mô tả tiếng Việt (theo Vietmap navigation symbol)
     // Sign code từ Vietmap (observed): 0=start, 2=right, -2=turn, 4=arrive
@@ -519,7 +533,8 @@ const steps = p.instructions.map((i) => {
     return {
       distanceMeters: p.distance,
       durationSeconds: Math.round(p.time / 1000),
-      polyline,
+      polyline: displayPolyline,
+      finalApproachMeters,
       requestedOrigin: { lat: fromLat, lng: fromLng },
       requestedDestination: { lat: loc.lat, lng: loc.lng },
       routeEndpoint: { lat: routeEndpoint[1], lng: routeEndpoint[0] },

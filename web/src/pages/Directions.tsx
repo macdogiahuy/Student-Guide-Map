@@ -40,6 +40,7 @@ interface RouteData {
   polyline: [number, number][];
   distanceMeters: number;
   durationSeconds: number;
+  finalApproachMeters: number;
   steps: RouteStep[];
   tollCost: number;
   tolls: RouteToll[];
@@ -291,6 +292,11 @@ export default function Directions() {
             <div className="px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line text-sm">
               <span className="font-extrabold">🛣️ {fmtDist(route.distanceMeters)}</span>
               <span className="text-muted">~ {fmtDur(route.durationSeconds)}</span>
+              {route.finalApproachMeters > 20 && (
+                <span className="chip bg-info/10 text-info text-xs">
+                  Đoạn cuối đến điểm ghim: {fmtDist(route.finalApproachMeters)}
+                </span>
+              )}
               {route.tollCost > 0 && (
                 <span className="chip bg-warning/10 text-warning text-xs">💰 {fmtVnd(route.tollCost)}</span>
               )}
