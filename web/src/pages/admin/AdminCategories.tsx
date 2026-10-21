@@ -63,20 +63,20 @@ export default function AdminCategories() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
+    <div className="dashboard-page dashboard-page-wide">
       <Link to="/admin" className="text-sm text-primary-600 hover:underline">← Quay lại bảng quản trị</Link>
-      <h1 className="text-2xl font-extrabold mt-2 mb-4">📂 Quản lý danh mục</h1>
+      <h1 className="text-2xl font-extrabold mt-2 mb-4">Quản lý danh mục</h1>
       {msg && <div className="chip bg-info/10 text-info w-full justify-center py-2 mb-4">{msg}</div>}
 
-      <div className="card p-4 mb-6">
-        <h2 className="font-bold mb-3">Thêm danh mục mới</h2>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <input className="input" placeholder="Tên danh mục" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input className="input" placeholder="slug (chu-thuong, so, gach)" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
-          <input className="input" placeholder="Icon (emoji, tuy chon)" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
-          <input className="input" placeholder="Mo ta (tuy chon)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+      <div className="card dashboard-section mb-6">
+        <h2 className="dashboard-section-title">Thêm danh mục mới</h2>
+        <div className="dashboard-form-grid">
+          <label className="dashboard-field">Tên danh mục<input className="input" placeholder="Tên danh mục" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label className="dashboard-field">Slug<input className="input" placeholder="chu-thuong, so, gach" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} /></label>
+          <label className="dashboard-field">Icon<input className="input" placeholder="Emoji, tùy chọn" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} /></label>
+          <label className="dashboard-field">Mô tả<input className="input" placeholder="Mô tả, tùy chọn" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
         </div>
-        <button className="btn-primary mt-3" onClick={create}>+ Tạo danh mục</button>
+        <button type="button" className="btn-primary mt-3" onClick={create}>+ Tạo danh mục</button>
       </div>
 
       <div className="space-y-2">
@@ -87,10 +87,10 @@ export default function AdminCategories() {
               {c.description && <p className="text-xs text-muted">{c.description}</p>}
             </div>
             <div className="flex gap-2">
-              <button className={`chip ${c.isActive ? 'bg-success/10 text-success' : 'bg-surface-2 text-muted'}`} onClick={() => toggle(c)}>
+              <button type="button" className={`chip ${c.isActive ? 'bg-success/10 text-success' : 'bg-surface-2 text-muted'}`} onClick={() => toggle(c)}>
                 {c.isActive ? 'Đang hiện' : 'Đã ẩn'}
               </button>
-              <button className="chip bg-error/10 text-error" onClick={() => del(c)}>Xóa</button>
+              <button type="button" className="chip bg-error/10 text-error" onClick={() => del(c)}>Xóa</button>
             </div>
           </div>
         ))}

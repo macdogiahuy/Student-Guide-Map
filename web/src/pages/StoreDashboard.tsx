@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Category, LocationDetail, Review } from '../lib/types';
 import { useAuth } from '../context/AuthContext';
@@ -35,6 +35,7 @@ const STATUS_LABEL: Record<string, string> = {
 export default function StoreDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [dash, setDash] = useState<DashStats | null>(null);
   const [locations, setLocations] = useState<StoreLoc[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
@@ -81,6 +82,15 @@ export default function StoreDashboard() {
     endDate: new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10),
   });
   const [promos, setPromos] = useState<{ id: string; title: string; status: string; endDate: string; location: { name: string } }[]>([]);
+
+  useEffect(() => {
+    const requestedTab = searchParams.get('tab');
+    if (requestedTab === 'locations' || requestedTab === 'promotions' || requestedTab === 'new') {
+      setTab(requestedTab);
+    } else if (!requestedTab) {
+      setTab('overview');
+    }
+  }, [searchParams]);
 
   const loadAll = useCallback(async () => {
     const [d, l, p] = await Promise.all([
@@ -180,14 +190,26 @@ export default function StoreDashboard() {
 
   if (loading || !dash) return <p className="p-10 text-center text-muted">Đang tải…</p>;
 
+  const tabKeys = ['overview', 'locations', 'new', 'promotions'] as const;
+  const moveTab = (current: typeof tab, direction: 1 | -1) => {
+    const index = tabKeys.indexOf(current);
+    const next = tabKeys[(index + direction + tabKeys.length) % tabKeys.length];
+    setTab(next);
+    document.getElementById(`store-tab-${next}`)?.focus();
+  };
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6">
-      <h1 className="text-2xl font-extrabold mb-1">Bảng điều khiển cửa hàng</h1>
-      <p className="text-sm text-muted mb-5">Xin chào, {user?.storeName ?? user?.fullName} 👋</p>
+    <div className="dashboard-page">
+      <div className="dashboard-heading">
+        <div>
+          <h1 className="font-extrabold">Bảng điều khiển cửa hàng</h1>
+          <p className="text-sm text-muted mt-1">Xin chào, {user?.storeName ?? user?.fullName}</p>
+        </div>
+      </div>
 
       {msg && <div className="chip bg-info/10 text-info w-full justify-center py-2 mb-4">{msg}</div>}
 
-      <div className="flex gap-1 mb-5 border-b border-line overflow-x-auto">
+      <div className="dashboard-tabs" role="tablist" aria-label="Khu vực cửa hàng">
         {(
           [
             ['overview', 'Tổng quan'],
@@ -198,18 +220,32 @@ export default function StoreDashboard() {
         ).map(([key, label]) => (
           <button
             key={key}
-            className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px ${
-              tab === key ? 'border-primary-600 text-primary-600' : 'border-transparent text-muted'
-            }`}
+            type="button"
+            role="tab"
+            id={`store-tab-${key}`}
+            aria-controls={`store-panel-${key}`}
+            aria-selected={tab === key}
+            tabIndex={tab === key ? 0 : -1}
+            className={`dashboard-tab ${tab === key ? 'dashboard-tab-active' : ''}`}
             onClick={() => setTab(key)}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                event.preventDefault();
+                moveTab(key, 1);
+              } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                moveTab(key, -1);
+              }
+            }}
           >
             {label}
           </button>
         ))}
       </div>
 
+      <div id={`store-panel-${tab}`} role="tabpanel" aria-labelledby={`store-tab-${tab}`} tabIndex={0}>
       {tab === 'overview' && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="dashboard-kpis">
           {(
             [
               ['Tổng địa điểm', dash.stats.totalLocations],
@@ -220,17 +256,17 @@ export default function StoreDashboard() {
               ['Ưu đãi chờ duyệt', dash.stats.pendingPromos],
             ] as const
           ).map(([label, value]) => (
-            <div key={label} className="card p-4">
+            <div key={label} className="card dashboard-kpi">
               <p className="text-xs text-muted">{label}</p>
-              <p className="text-2xl font-extrabold text-primary-600">{value}</p>
+              <p className="dashboard-kpi-value">{value}</p>
             </div>
           ))}
         </div>
       )}
 
       {tab === 'overview' && (
-        <section className="card p-5">
-          <h2 className="font-bold mb-3">Đánh giá gần đây</h2>
+        <section className="card dashboard-section">
+          <h2 className="dashboard-section-title">Đánh giá gần đây</h2>
           {dash.recentReviews.length === 0 ? (
             <p className="text-sm text-muted">Chưa có đánh giá.</p>
           ) : (
@@ -294,47 +330,47 @@ export default function StoreDashboard() {
       )}
 
       {tab === 'new' && (
-        <form onSubmit={createLocation} className="card p-5 space-y-3 max-w-lg">
+        <form onSubmit={createLocation} className="card dashboard-section dashboard-form max-w-lg">
           <h2 className="font-bold">Thêm địa điểm mới</h2>
-          <input className="input" placeholder="Tên địa điểm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <input className="input" placeholder="Địa chỉ" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
-          <textarea className="input" rows={3} placeholder="Mô tả" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          <select className="input" value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })} required>
+          <label className="dashboard-field">Tên địa điểm<input className="input" placeholder="Tên địa điểm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
+          <label className="dashboard-field">Địa chỉ<input className="input" placeholder="Địa chỉ" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required /></label>
+          <label className="dashboard-field">Mô tả<textarea className="input" rows={3} placeholder="Mô tả" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
+          <label className="dashboard-field">Danh mục<select className="input" value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })} required>
             <option value="">Chọn danh mục…</option>
             {cats.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
-          </select>
+          </select></label>
           <div className="grid grid-cols-2 gap-3">
-            <input className="input" type="number" step="any" placeholder="Vĩ độ (lat)" value={form.lat} onChange={(e) => setForm({ ...form, lat: Number(e.target.value) })} required />
-            <input className="input" type="number" step="any" placeholder="Kinh độ (lng)" value={form.lng} onChange={(e) => setForm({ ...form, lng: Number(e.target.value) })} required />
+            <label className="dashboard-field">Vĩ độ<input className="input" type="number" step="any" placeholder="Vĩ độ (lat)" value={form.lat} onChange={(e) => setForm({ ...form, lat: Number(e.target.value) })} required /></label>
+            <label className="dashboard-field">Kinh độ<input className="input" type="number" step="any" placeholder="Kinh độ (lng)" value={form.lng} onChange={(e) => setForm({ ...form, lng: Number(e.target.value) })} required /></label>
           </div>
-          <select className="input" value={form.priceLevel} onChange={(e) => setForm({ ...form, priceLevel: Number(e.target.value) })}>
+          <label className="dashboard-field">Mức giá<select className="input" value={form.priceLevel} onChange={(e) => setForm({ ...form, priceLevel: Number(e.target.value) })}>
             <option value={1}>Giá thấp (1)</option>
             <option value={2}>Trung bình (2)</option>
             <option value={3}>Cao (3)</option>
             <option value={4}>Cao cấp (4)</option>
             <option value={5}>Premium (5)</option>
-          </select>
-          <input className="input" placeholder="Số điện thoại (tuỳ chọn)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </select></label>
+          <label className="dashboard-field">Số điện thoại<input className="input" placeholder="Số điện thoại (tuỳ chọn)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
           <button className="btn-primary w-full">Gửi phê duyệt</button>
         </form>
       )}
 
       {tab === 'promotions' && (
-        <div className="grid md:grid-cols-2 gap-6">
-          <form onSubmit={createPromo} className="card p-5 space-y-3">
-            <h2 className="font-bold">Tạo ưu đãi mới</h2>
-            <select className="input" value={promo.locationId} onChange={(e) => setPromo({ ...promo, locationId: e.target.value })} required>
+        <div className="dashboard-grid">
+          <form onSubmit={createPromo} className="card dashboard-section dashboard-form">
+            <h2 className="dashboard-section-title">Tạo ưu đãi mới</h2>
+            <label className="dashboard-field">Địa điểm<select className="input" value={promo.locationId} onChange={(e) => setPromo({ ...promo, locationId: e.target.value })} required>
               <option value="">Chọn địa điểm…</option>
               {locations.filter((l) => l.status === 'APPROVED').map((l) => (
                 <option key={l.id} value={l.id}>{l.name}</option>
               ))}
-            </select>
-            <input className="input" placeholder="Tiêu đề" value={promo.title} onChange={(e) => setPromo({ ...promo, title: e.target.value })} required />
-            <textarea className="input" rows={2} placeholder="Nội dung" value={promo.content} onChange={(e) => setPromo({ ...promo, content: e.target.value })} required />
-            <input className="input" placeholder="Nhãn giảm giá (vd: -20%)" value={promo.discountLabel} onChange={(e) => setPromo({ ...promo, discountLabel: e.target.value })} />
-            <div className="grid grid-cols-2 gap-3">
+            </select></label>
+            <label className="dashboard-field">Tiêu đề<input className="input" placeholder="Tiêu đề" value={promo.title} onChange={(e) => setPromo({ ...promo, title: e.target.value })} required /></label>
+            <label className="dashboard-field">Nội dung<textarea className="input" rows={2} placeholder="Nội dung" value={promo.content} onChange={(e) => setPromo({ ...promo, content: e.target.value })} required /></label>
+            <label className="dashboard-field">Nhãn giảm giá<input className="input" placeholder="Ví dụ: -20%" value={promo.discountLabel} onChange={(e) => setPromo({ ...promo, discountLabel: e.target.value })} /></label>
+            <div className="dashboard-form-grid">
               <label className="text-xs text-muted">Từ<input className="input mt-1" type="date" value={promo.startDate} onChange={(e) => setPromo({ ...promo, startDate: e.target.value })} required /></label>
               <label className="text-xs text-muted">Đến<input className="input mt-1" type="date" value={promo.endDate} onChange={(e) => setPromo({ ...promo, endDate: e.target.value })} required /></label>
             </div>
@@ -366,32 +402,33 @@ export default function StoreDashboard() {
           </div>
         </div>
       )}
+      </div>
 
       {/* Modal sửa địa điểm */}
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Sửa thông tin địa điểm" tone="info">
-        <form onSubmit={saveEdit} className="space-y-3">
-          <input className="input" placeholder="Tên địa điểm" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
-          <input className="input" placeholder="Địa chỉ" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} required />
-          <textarea className="input" rows={3} placeholder="Mô tả" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
-          <select className="input" value={editForm.categoryId} onChange={(e) => setEditForm({ ...editForm, categoryId: e.target.value })} required>
+        <form onSubmit={saveEdit} className="dashboard-form">
+          <label className="dashboard-field">Tên địa điểm<input className="input" placeholder="Tên địa điểm" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required /></label>
+          <label className="dashboard-field">Địa chỉ<input className="input" placeholder="Địa chỉ" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} required /></label>
+          <label className="dashboard-field">Mô tả<textarea className="input" rows={3} placeholder="Mô tả" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} /></label>
+          <label className="dashboard-field">Danh mục<select className="input" value={editForm.categoryId} onChange={(e) => setEditForm({ ...editForm, categoryId: e.target.value })} required>
             <option value="">Chọn danh mục…</option>
             {cats.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
-          </select>
+          </select></label>
           <div className="grid grid-cols-2 gap-3">
-            <input className="input" type="number" step="any" placeholder="Vĩ độ (lat)" value={editForm.lat} onChange={(e) => setEditForm({ ...editForm, lat: Number(e.target.value) })} required />
-            <input className="input" type="number" step="any" placeholder="Kinh độ (lng)" value={editForm.lng} onChange={(e) => setEditForm({ ...editForm, lng: Number(e.target.value) })} required />
+            <label className="dashboard-field">Vĩ độ<input className="input" type="number" step="any" placeholder="Vĩ độ (lat)" value={editForm.lat} onChange={(e) => setEditForm({ ...editForm, lat: Number(e.target.value) })} required /></label>
+            <label className="dashboard-field">Kinh độ<input className="input" type="number" step="any" placeholder="Kinh độ (lng)" value={editForm.lng} onChange={(e) => setEditForm({ ...editForm, lng: Number(e.target.value) })} required /></label>
           </div>
-          <select className="input" value={editForm.priceLevel} onChange={(e) => setEditForm({ ...editForm, priceLevel: Number(e.target.value) })}>
+          <label className="dashboard-field">Mức giá<select className="input" value={editForm.priceLevel} onChange={(e) => setEditForm({ ...editForm, priceLevel: Number(e.target.value) })}>
             <option value={1}>Giá thấp (1)</option>
             <option value={2}>Trung bình (2)</option>
             <option value={3}>Cao (3)</option>
             <option value={4}>Cao cấp (4)</option>
             <option value={5}>Premium (5)</option>
-          </select>
-          <input className="input" placeholder="Số điện thoại (tuỳ chọn)" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
-          <input className="input" placeholder="Khoảng giá (vd: 15k–40k)" value={editForm.priceRange} onChange={(e) => setEditForm({ ...editForm, priceRange: e.target.value })} />
+          </select></label>
+          <label className="dashboard-field">Số điện thoại<input className="input" placeholder="Số điện thoại (tuỳ chọn)" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} /></label>
+          <label className="dashboard-field">Khoảng giá<input className="input" placeholder="Ví dụ: 15k–40k" value={editForm.priceRange} onChange={(e) => setEditForm({ ...editForm, priceRange: e.target.value })} /></label>
           <button className="btn-primary w-full" disabled={editSaving}>
             {editSaving ? 'Đang lưu…' : 'Lưu thay đổi'}
           </button>

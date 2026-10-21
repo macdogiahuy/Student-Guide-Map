@@ -75,7 +75,9 @@ export default function Login() {
             <p className="text-sm text-muted mb-5">Chào mừng bạn quay lại Student Guide Map.</p>
             {error && <div className="chip bg-error/10 text-error w-full justify-center py-2 mb-3">{error}</div>}
             <form onSubmit={submit} className="space-y-3">
+              <label className="sr-only" htmlFor="login-email">Email</label>
               <input
+                id="login-email"
                 className="input"
                 type="email"
                 placeholder="Email"
@@ -83,7 +85,9 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
+              <label className="sr-only" htmlFor="login-password">Mật khẩu</label>
               <input
+                id="login-password"
                 className="input"
                 type="password"
                 placeholder="Mật khẩu"
@@ -116,7 +120,9 @@ export default function Login() {
             )}
             {error && <div className="chip bg-error/10 text-error w-full justify-center py-2 mb-3">{error}</div>}
             <form onSubmit={confirmOtp} className="space-y-3">
+              <label className="sr-only" htmlFor="login-otp">Mã OTP</label>
               <input
+                id="login-otp"
                 className="input text-center tracking-[0.5em] text-lg"
                 placeholder="••••••"
                 maxLength={6}

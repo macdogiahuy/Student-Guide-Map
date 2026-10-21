@@ -128,15 +128,26 @@ export default function AdminDashboard() {
   if (loading || !dash) return <p className="p-10 text-center text-muted">Đang tải…</p>;
 
   const s = dash.stats;
+  const tabKeys = ['overview', 'locations', 'promotions', 'reports', 'reviews', 'users'] as const;
+  const moveTab = (current: typeof tab, direction: 1 | -1) => {
+    const index = tabKeys.indexOf(current);
+    const next = tabKeys[(index + direction + tabKeys.length) % tabKeys.length];
+    setTab(next);
+    document.getElementById(`admin-tab-${next}`)?.focus();
+  };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6">
-      <h1 className="text-2xl font-extrabold mb-1">Bảng quản trị</h1>
-      <p className="text-sm text-muted mb-5">Xin chào, {user?.fullName} 👋</p>
+    <div className="dashboard-page dashboard-page-wide">
+      <div className="dashboard-heading">
+        <div>
+          <h1 className="font-extrabold">Bảng quản trị</h1>
+          <p className="text-sm text-muted mt-1">Xin chào, {user?.fullName}</p>
+        </div>
+      </div>
 
       {msg && <div className="chip bg-info/10 text-info w-full justify-center py-2 mb-4">{msg}</div>}
 
-      <div className="flex gap-1 mb-5 border-b border-line overflow-x-auto">
+      <div className="dashboard-tabs" role="tablist" aria-label="Khu vực quản trị">
         {(
           [
             ['overview', 'Tổng quan'],
@@ -149,19 +160,33 @@ export default function AdminDashboard() {
         ).map(([key, label]) => (
           <button
             key={key}
-            className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px ${
-              tab === key ? 'border-primary-600 text-primary-600' : 'border-transparent text-muted'
-            }`}
+            type="button"
+            role="tab"
+            id={`admin-tab-${key}`}
+            aria-controls={`admin-panel-${key}`}
+            aria-selected={tab === key}
+            tabIndex={tab === key ? 0 : -1}
+            className={`dashboard-tab ${tab === key ? 'dashboard-tab-active' : ''}`}
             onClick={() => setTab(key)}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                event.preventDefault();
+                moveTab(key, 1);
+              } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                moveTab(key, -1);
+              }
+            }}
           >
             {label}
           </button>
         ))}
       </div>
 
+      <div id={`admin-panel-${tab}`} role="tabpanel" aria-labelledby={`admin-tab-${tab}`} tabIndex={0}>
       {tab === 'overview' && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div className="dashboard-kpis">
             {(
               [
                 ['Sinh viên', s.totalStudents],
@@ -174,16 +199,16 @@ export default function AdminDashboard() {
                 ['Đánh giá hiển thị', s.displayedReviews],
               ] as const
             ).map(([label, value]) => (
-              <div key={label} className="card p-4">
+              <div key={label} className="card dashboard-kpi">
                 <p className="text-xs text-muted">{label}</p>
-                <p className="text-2xl font-extrabold text-primary-600">{value ?? 0}</p>
+                <p className="dashboard-kpi-value">{value ?? 0}</p>
               </div>
             ))}
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <section className="card p-5">
-              <h2 className="font-bold mb-3">Địa điểm mới nhất</h2>
+          <div className="dashboard-grid">
+            <section className="card dashboard-section">
+              <h2 className="dashboard-section-title">Địa điểm mới nhất</h2>
               {dash.recentLocations.map((l) => (
                 <div key={l.id} className="border-b border-line last:border-0 py-2 text-sm flex justify-between gap-2">
                   <Link to={`/locations/${l.id}`} className="font-semibold hover:text-primary-600">{l.name}</Link>
@@ -191,8 +216,8 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </section>
-            <section className="card p-5">
-              <h2 className="font-bold mb-3">Báo cáo mới nhất</h2>
+            <section className="card dashboard-section">
+              <h2 className="dashboard-section-title">Báo cáo mới nhất</h2>
               {dash.recentReports.map((r) => (
                 <div key={r.id} className="border-b border-line last:border-0 py-2 text-sm">
                   <span className="font-semibold">{r.location.name}</span>
@@ -271,15 +296,16 @@ export default function AdminDashboard() {
       {tab === 'users' && (
         <UsersPanel />
       )}
+      </div>
 
       {/* shortcuts */}
-      <div className="mt-8 grid sm:grid-cols-2 gap-3">
+      <div className="mt-8 grid gap-3 sm:grid-cols-2">
         <Link to="/admin/categories" className="card p-4 hover:shadow-md">
-          <p className="font-bold">📂 Quản lý danh mục</p>
+          <p className="font-bold">Quản lý danh mục</p>
           <p className="text-sm text-muted">Thêm / sửa / ẩn danh mục địa điểm</p>
         </Link>
         <Link to="/admin/statistics" className="card p-4 hover:shadow-md">
-          <p className="font-bold">📊 Thống kê</p>
+          <p className="font-bold">Thống kê</p>
           <p className="text-sm text-muted">Xu hướng người dùng, đánh giá, địa điểm theo danh mục</p>
         </Link>
       </div>

@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import type { LocationListItem } from '../lib/types';
 
-const PRICE_LABEL = ['', '₹', '₹₹', '₹₹₹', '₹₹₹₹', '₹₹₹₹₹'];
+const PRICE_LABEL = ['', 'Giá rẻ', 'Giá vừa', 'Khá cao', 'Giá cao', 'Rất cao'];
 
 function priceLabel(level: number) {
-  // simple 1–5 dots instead of currency glyphs
-  return '₫'.repeat(Math.min(Math.max(level, 1), 5));
+  const labels = ['Giá rẻ', 'Giá vừa', 'Khá cao', 'Giá cao', 'Rất cao'];
+  return labels[Math.min(Math.max(Math.round(level), 1), labels.length) - 1];
 }
 
 function OpenBadge({ state, label }: { state: string; label: string }) {
@@ -73,7 +73,9 @@ export default function LocationCard({
         <p className="text-sm text-muted line-clamp-1">{loc.address}</p>
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
           <span className="chip bg-primary-50 text-primary-600">{loc.category.name}</span>
-          <span className="chip bg-surface-2 text-muted">{priceLabel(loc.priceLevel)}</span>
+          <span className="chip bg-surface-2 text-muted" title={`Mức giá: ${priceLabel(loc.priceLevel)}`}>
+            {priceLabel(loc.priceLevel)}
+          </span>
           <OpenBadge state={loc.openStatus.state} label={loc.openStatus.label} />
           {loc.distanceLabel && (
             <span className="chip bg-surface-2 text-muted">🚶 {loc.distanceLabel}</span>

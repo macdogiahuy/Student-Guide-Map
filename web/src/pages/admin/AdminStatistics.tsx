@@ -37,28 +37,28 @@ export default function AdminStatistics() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6">
+    <div className="dashboard-page dashboard-page-wide">
       <Link to="/admin" className="text-sm text-primary-600 hover:underline">← Quay lại bảng quản trị</Link>
-      <h1 className="text-2xl font-extrabold mt-2 mb-5">📊 Thống kê</h1>
+      <h1 className="text-2xl font-extrabold mt-2 mb-5">Thống kê</h1>
 
-      <div className="grid md:grid-cols-2 gap-5">
-        <section className="card p-5">
-          <h2 className="font-bold mb-3">Người dùng mới / tháng</h2>
+      <div className="dashboard-grid">
+        <section className="card dashboard-section">
+          <h2 className="dashboard-section-title">Người dùng mới / tháng</h2>
           {stats.usersByMonth.map((x) => bar(x.month, x.count, maxU, 'bg-primary-600'))}
         </section>
 
-        <section className="card p-5">
-          <h2 className="font-bold mb-3">Đánh giá mới / tháng</h2>
+        <section className="card dashboard-section">
+          <h2 className="dashboard-section-title">Đánh giá mới / tháng</h2>
           {stats.reviewsByMonth.map((x) => bar(x.month, x.count, maxR, 'bg-info'))}
         </section>
 
-        <section className="card p-5">
-          <h2 className="font-bold mb-3">Địa điểm theo danh mục</h2>
+        <section className="card dashboard-section">
+          <h2 className="dashboard-section-title">Địa điểm theo danh mục</h2>
           {stats.locationsByCategory.map((x) => bar(x.category, x.count, maxC, 'bg-accent'))}
         </section>
 
-        <section className="card p-5">
-          <h2 className="font-bold mb-3">Báo cáo theo trạng thái</h2>
+        <section className="card dashboard-section">
+          <h2 className="dashboard-section-title">Báo cáo theo trạng thái</h2>
           {stats.reportsByStatus.map((x) => (
             <div key={x.status} className="flex justify-between text-sm py-1 border-b border-line last:border-0">
               <span className="text-muted">{x.status}</span>
@@ -75,8 +75,8 @@ export default function AdminStatistics() {
         </section>
       </div>
 
-      <section className="card p-5 mt-5">
-        <h2 className="font-bold mb-3">🏆 Top địa điểm được đánh giá cao</h2>
+      <section className="card dashboard-section mt-5">
+        <h2 className="dashboard-section-title">🏆 Top địa điểm được đánh giá cao</h2>
         {stats.topRated.map((l, i) => (
           <div key={l.id} className="flex items-center justify-between py-2 border-b border-line last:border-0 text-sm">
             <span>#{i + 1} <Link to={`/locations/${l.id}`} className="font-semibold hover:text-primary-600">{l.name}</Link></span>

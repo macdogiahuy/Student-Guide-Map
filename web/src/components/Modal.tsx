@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface ModalProps {
   open: boolean;
@@ -16,16 +16,22 @@ const TONE: Record<string, { icon: string; border: string; bg: string }> = {
 };
 
 export default function Modal({ open, onClose, title, children, tone = 'info' }: ModalProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!open) return;
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
+      previouslyFocusedRef.current?.focus();
     };
   }, [open, onClose]);
 
@@ -42,7 +48,7 @@ export default function Modal({ open, onClose, title, children, tone = 'info' }:
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby="modal-title"
         className={`relative w-full sm:max-w-md bg-surface rounded-t-2xl sm:rounded-2xl border-2 ${t.border} ${t.bg} shadow-2xl animate-none`}
         style={{ animation: 'modalIn .2s ease-out' }}
       >
@@ -51,9 +57,11 @@ export default function Modal({ open, onClose, title, children, tone = 'info' }:
             {t.icon}
           </span>
           <div className="flex-1 min-w-0">
-            <h2 className="font-extrabold text-base leading-snug pr-2">{title}</h2>
+            <h2 id="modal-title" className="font-extrabold text-base leading-snug pr-2">{title}</h2>
           </div>
           <button
+            ref={closeButtonRef}
+            type="button"
             onClick={onClose}
             aria-label="Đóng"
             className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-muted hover:bg-surface-2 hover:text-ink transition-colors text-lg leading-none"

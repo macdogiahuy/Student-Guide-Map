@@ -4,7 +4,7 @@ import type { Category, LocationListItem, Paged } from '../lib/types';
 import LocationCard from '../components/LocationCard';
 import { DEFAULT_CENTER } from '../lib/center';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 // vietmap-gl is heavy (~700KB) — split it out of the main bundle.
 const MapView = lazy(() => import('../components/MapView'));
@@ -27,7 +27,10 @@ const RADII = [
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [view, setView] = useState<'list' | 'map'>('list');
+  const [searchParams] = useSearchParams();
+  const [view, setView] = useState<'list' | 'map'>(
+    searchParams.get('view') === 'map' ? 'map' : 'list',
+  );
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('');
   const [sort, setSort] = useState<(typeof SORTS)[number]['value']>('nearest');
@@ -42,7 +45,12 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [cats, setCats] = useState<Category[]>([]);
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const limit = 12;
+
+  useEffect(() => {
+    setView(searchParams.get('view') === 'map' ? 'map' : 'list');
+  }, [searchParams]);
 
   useEffect(() => {
     api.get<Category[]>('/categories').then(setCats).catch(() => setCats([]));
@@ -109,10 +117,10 @@ export default function Home() {
   return (
     <div>
       {/* Hero */}
-      <section className="bg-gradient-to-br from-primary-600 to-primary text-white">
+      <section className="bg-primary-600 text-white">
         <div className="mx-auto max-w-6xl px-4 py-10 md:py-14">
           <h1 className="text-3xl md:text-4xl font-extrabold leading-tight">
-            Khám phá địa điểm quanh trường 🎓
+            Khám phá địa điểm quanh trường
           </h1>
           <p className="mt-2 text-white/85 max-w-xl">
             Quán ăn, cà phê, in ấn, sửa xe… tất cả cho sinh viên FPT — đánh giá thật, ưu đãi thật.
@@ -127,8 +135,8 @@ export default function Home() {
                 setPage(1);
               }}
             />
-            <button className="btn bg-secondary text-white" onClick={load}>
-              🔍 Tìm kiếm
+            <button className="btn bg-secondary text-white" type="button" onClick={load}>
+              Tìm kiếm
             </button>
           </div>
         </div>
@@ -136,9 +144,24 @@ export default function Home() {
 
       <div className="mx-auto max-w-6xl px-4 py-6">
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="mb-3 flex items-center gap-2 md:hidden">
+          <button
+            type="button"
+            className="btn-ghost"
+            aria-expanded={filtersOpen}
+            aria-controls="home-filter-controls"
+            onClick={() => setFiltersOpen((open) => !open)}
+          >
+            {filtersOpen ? 'Ẩn bộ lọc' : 'Hiện bộ lọc'}
+          </button>
+        </div>
+        <div
+          id="home-filter-controls"
+          className={`${filtersOpen ? 'flex' : 'hidden'} flex-wrap items-center gap-2 mb-3`}
+        >
           <select
-            className="input !w-auto"
+            className="input filter-control"
+            aria-label="Danh mục"
             value={category}
             onChange={(e) => {
               setCategory(e.target.value);
@@ -153,7 +176,8 @@ export default function Home() {
             ))}
           </select>
           <select
-            className="input !w-auto"
+            className="input filter-control"
+            aria-label="Sắp xếp"
             value={sort}
             onChange={(e) => setSort(e.target.value as typeof sort)}
           >
@@ -164,7 +188,9 @@ export default function Home() {
             ))}
           </select>
           <button
+            type="button"
             className={`chip border ${openOnly ? 'bg-success/10 text-success border-success' : 'bg-surface border-line text-muted'}`}
+            aria-pressed={openOnly}
             onClick={() => {
               setOpenOnly((v) => !v);
               setPage(1);
@@ -173,7 +199,9 @@ export default function Home() {
             Đang mở
           </button>
           <button
+            type="button"
             className={`chip border ${promoOnly ? 'bg-accent text-white border-accent' : 'bg-surface border-line text-muted'}`}
+            aria-pressed={promoOnly}
             onClick={() => {
               setPromoOnly((v) => !v);
               setPage(1);
@@ -182,7 +210,8 @@ export default function Home() {
             Có ưu đãi
           </button>
           <select
-            className="input !w-auto"
+            className="input filter-control"
+            aria-label="Mức đánh giá tối thiểu"
             value={minRating}
             onChange={(e) => {
               setMinRating(Number(e.target.value));
@@ -195,7 +224,8 @@ export default function Home() {
             <option value={4.5}>≥ 4.5★</option>
           </select>
           <select
-            className="input !w-auto"
+            className="input filter-control"
+            aria-label="Khoảng cách"
             value={radius}
             onChange={(e) => {
               setRadius(e.target.value);
@@ -208,20 +238,24 @@ export default function Home() {
               </option>
             ))}
           </select>
-          <div className="ml-auto inline-flex rounded-xl border border-line overflow-hidden">
-            <button
-              className={`px-3 py-2 text-sm font-semibold ${view === 'list' ? 'bg-primary-50 text-primary-600' : 'bg-surface text-muted'}`}
-              onClick={() => setView('list')}
-            >
-              ☰ Danh sách
-            </button>
-            <button
-              className={`px-3 py-2 text-sm font-semibold ${view === 'map' ? 'bg-primary-50 text-primary-600' : 'bg-surface text-muted'}`}
-              onClick={() => setView('map')}
-            >
-              🗺️ Bản đồ
-            </button>
-          </div>
+        </div>
+        <div className="mb-4 flex w-full overflow-hidden rounded-xl border border-line md:ml-auto md:w-fit">
+          <button
+            type="button"
+            className={`flex-1 px-3 py-2 text-sm font-semibold md:flex-none ${view === 'list' ? 'bg-primary-50 text-primary-600' : 'bg-surface text-muted'}`}
+            aria-pressed={view === 'list'}
+            onClick={() => setView('list')}
+          >
+            Danh sách
+          </button>
+          <button
+            type="button"
+            className={`flex-1 px-3 py-2 text-sm font-semibold md:flex-none ${view === 'map' ? 'bg-primary-50 text-primary-600' : 'bg-surface text-muted'}`}
+            aria-pressed={view === 'map'}
+            onClick={() => setView('map')}
+          >
+            Bản đồ
+          </button>
         </div>
 
         {loading && items.length === 0 ? (

@@ -267,7 +267,9 @@ export default function LocationDetailPage() {
                 </button>
               ))}
             </div>
+            <label className="sr-only" htmlFor="review-comment">Nội dung đánh giá</label>
             <textarea
+              id="review-comment"
               className="input mb-2"
               rows={3}
               maxLength={500}
@@ -336,7 +338,9 @@ export default function LocationDetailPage() {
                       </button>
                     ))}
                   </div>
+                  <label className="sr-only" htmlFor={`review-edit-${r.id}`}>Nhận xét chỉnh sửa</label>
                   <textarea
+                    id={`review-edit-${r.id}`}
                     className="input"
                     rows={2}
                     maxLength={500}
@@ -392,14 +396,17 @@ export default function LocationDetailPage() {
         <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={() => setReportOpen(false)}>
           <div className="card p-5 w-full max-w-md space-y-3" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-bold">Báo cáo thông tin sai</h3>
-            <select className="input" value={reportType} onChange={(e) => setReportType(e.target.value)}>
+            <label className="sr-only" htmlFor="report-type">Loại báo cáo</label>
+            <select id="report-type" className="input" value={reportType} onChange={(e) => setReportType(e.target.value)}>
               <option value="WRONG_ADDRESS">Sai địa chỉ</option>
               <option value="WRONG_PRICE">Sai giá</option>
               <option value="WRONG_HOURS">Sai giờ mở cửa</option>
               <option value="CLOSED">Địa điểm đã đóng cửa</option>
               <option value="OTHER">Thông tin khác sai</option>
             </select>
+            <label className="sr-only" htmlFor="report-content">Mô tả báo cáo</label>
             <textarea
+              id="report-content"
               className="input"
               rows={3}
               placeholder="Mô tả chi tiết (không bắt buộc)"

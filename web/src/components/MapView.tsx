@@ -105,13 +105,15 @@ export default function MapView({
       if (!marker) {
         const el = document.createElement('button');
         el.className =
-          'size-8 rounded-full bg-primary-600 text-white text-xs font-bold shadow-lg border-2 border-white grid place-items-center cursor-pointer';
+          'size-8 rounded-full bg-primary-600 text-white text-xs font-bold shadow-lg border-2 border-white grid place-items-center cursor-pointer m-0 p-0';
         el.textContent = pin.label ?? '📍';
         el.addEventListener('click', (e) => {
           e.stopPropagation();
           clickRef.current?.(pin.id);
         });
-        marker = new vietmapgl.Marker({ element: el }).setLngLat([pin.lng, pin.lat]).addTo(map);
+        marker = new vietmapgl.Marker({ element: el, anchor: 'center', offset: [0, 0] })
+          .setLngLat([pin.lng, pin.lat])
+          .addTo(map);
         markersRef.current[pin.id] = marker;
       } else {
         marker.setLngLat([pin.lng, pin.lat]);
@@ -119,7 +121,6 @@ export default function MapView({
       const el = marker.getElement();
       el.classList.toggle('ring-4', pin.id === selectedId);
       el.classList.toggle('ring-primary/40', pin.id === selectedId);
-      el.classList.toggle('scale-110', pin.id === selectedId);
     }
   }, [pins, selectedId]);
 

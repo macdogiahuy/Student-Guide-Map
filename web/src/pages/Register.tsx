@@ -96,14 +96,18 @@ export default function Register() {
               </div>
             )}
             <form onSubmit={submit} className="space-y-3">
+            <label className="sr-only" htmlFor="register-name">Họ và tên</label>
             <input
+              id="register-name"
               className="input"
               placeholder="Họ và tên"
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
               required
             />
+            <label className="sr-only" htmlFor="register-email">Email</label>
             <input
+              id="register-email"
               className="input"
               type="email"
               placeholder="Email"
@@ -111,7 +115,9 @@ export default function Register() {
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               required
             />
+            <label className="sr-only" htmlFor="register-password">Mật khẩu</label>
             <input
+              id="register-password"
               className="input"
               type="password"
               placeholder="Mật khẩu (tối thiểu 8 ký tự, có chữ & số)"
@@ -120,7 +126,9 @@ export default function Register() {
               required
               minLength={8}
             />
+            <label className="sr-only" htmlFor="register-role">Vai trò</label>
             <select
+              id="register-role"
               className="input"
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value as 'STUDENT' | 'STORE_OWNER' })}
@@ -129,13 +137,17 @@ export default function Register() {
               <option value="STORE_OWNER">Tôi là chủ cửa hàng</option>
             </select>
             {form.role === 'STORE_OWNER' && (
+              <>
+              <label className="sr-only" htmlFor="register-store-name">Tên cửa hàng</label>
               <input
+                id="register-store-name"
                 className="input"
                 placeholder="Tên cửa hàng"
                 value={form.storeName}
                 onChange={(e) => setForm({ ...form, storeName: e.target.value })}
                 required
               />
+              </>
             )}
             <button className="btn-primary w-full" disabled={loading}>
               {loading ? 'Đang đăng ký…' : 'Đăng ký'}
@@ -152,7 +164,9 @@ export default function Register() {
                 Mã OTP (dev): <b className="tracking-[0.3em]">{devOtp}</b>
               </div>
             )}
+            <label className="sr-only" htmlFor="register-otp">Mã OTP</label>
             <input
+              id="register-otp"
               className="input text-center tracking-[0.5em] text-lg"
               placeholder="••••••"
               maxLength={6}
