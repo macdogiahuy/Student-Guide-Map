@@ -11,6 +11,47 @@ import type { z } from 'zod';
 type CreateInput = z.infer<typeof createLocationSchema>;
 type UpdateInput = z.infer<typeof updateLocationSchema>;
 
+type Coordinate = [number, number];
+
+function normalizeRouteCoordinates(rawCoords: Coordinate[], destination: { lat: number; lng: number }) {
+  const candidates = rawCoords.map((coordinate) => {
+    const [first, second] = coordinate;
+    const asLngLat =
+      Number.isFinite(first) &&
+      Number.isFinite(second) &&
+      Math.abs(first) <= 180 &&
+      Math.abs(second) <= 90
+        ? ([first, second] as Coordinate)
+        : null;
+    const asLatLng =
+      Number.isFinite(first) &&
+      Number.isFinite(second) &&
+      Math.abs(first) <= 90 &&
+      Math.abs(second) <= 180
+        ? ([second, first] as Coordinate)
+        : null;
+    return { asLngLat, asLatLng };
+  });
+
+  const last = candidates[candidates.length - 1];
+  if (!last || (!last.asLngLat && !last.asLatLng)) {
+    throw AppError.internal('Vietmap trả về geometry có tọa độ không hợp lệ.');
+  }
+
+  const distanceToDestination = (coordinate: Coordinate) =>
+    haversineKm(destination.lat, destination.lng, coordinate[1], coordinate[0]);
+  const useLngLat =
+    last.asLngLat && last.asLatLng
+      ? distanceToDestination(last.asLngLat) <= distanceToDestination(last.asLatLng)
+      : Boolean(last.asLngLat);
+
+  return candidates.map(({ asLngLat, asLatLng }) => {
+    const normalized = useLngLat ? asLngLat : asLatLng;
+    if (!normalized) throw AppError.internal('Vietmap trả về geometry không nhất quán.');
+    return normalized;
+  });
+}
+
 export interface ListLocationDto {
   id: string;
   name: string;
@@ -411,12 +452,10 @@ export class LocationService {
     const rawCoords: [number, number][] = Array.isArray(p.points)
       ? p.points
       : (p.points as { coordinates: [number, number][] }).coordinates;
-    // chuẩn hoá về [lng,lat] cho MapLibre
-    const polyline = rawCoords.map((c) =>
-      Array.isArray(c) && Math.abs(c[0]) <= 180 && Math.abs(c[1]) <= 90 && c[0] !== undefined && Math.abs(c[0]) > Math.abs(c[1])
-        ? ([c[0], c[1]] as [number, number]) // đã là [lng,lat]
-        : ([c[1], c[0]] as [number, number]), // [lat,lng] → [lng,lat]
-    );
+    // Normalize to [lng, lat], using the requested destination to disambiguate
+    // Vietmap's [lat, lng] response from its GeoJSON [lng, lat] response.
+    const polyline = normalizeRouteCoordinates(rawCoords, { lat: loc.lat, lng: loc.lng });
+    const routeEndpoint = polyline[polyline.length - 1];
 
     // sign code → icon + mô tả tiếng Việt (theo Vietmap navigation symbol)
     // Sign code từ Vietmap (observed): 0=start, 2=right, -2=turn, 4=arrive
@@ -460,6 +499,9 @@ const steps = p.instructions.map((i) => {
       distanceMeters: p.distance,
       durationSeconds: Math.round(p.time / 1000),
       polyline,
+      requestedOrigin: { lat: fromLat, lng: fromLng },
+      requestedDestination: { lat: loc.lat, lng: loc.lng },
+      routeEndpoint: { lat: routeEndpoint[1], lng: routeEndpoint[0] },
       steps,
       tollCost: p.toll_cost ?? 0,
       tolls: (p.tolls ?? []).map((t) => ({

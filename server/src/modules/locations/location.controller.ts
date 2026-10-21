@@ -189,6 +189,7 @@ export class LocationController extends BaseController {
 
   route = asyncErrorWrapper(async (req: Request, res: Response) => {
     try {
+      res.setHeader('Cache-Control', 'private, no-store');
       const fromLat = Number(req.query.fromLat);
       const fromLng = Number(req.query.fromLng);
       if (!Number.isFinite(fromLat) || !Number.isFinite(fromLng)) {
