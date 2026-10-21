@@ -52,6 +52,23 @@ function normalizeRouteCoordinates(rawCoords: Coordinate[], destination: { lat: 
   });
 }
 
+function orientRouteCoordinates(
+  coordinates: Coordinate[],
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+) {
+  const first = coordinates[0];
+  const last = coordinates[coordinates.length - 1];
+  if (!first || !last) throw AppError.internal('Vietmap trả về geometry rỗng.');
+
+  const distance = (point: { lat: number; lng: number }, coordinate: Coordinate) =>
+    haversineKm(point.lat, point.lng, coordinate[1], coordinate[0]);
+  const normalCost = distance(origin, first) + distance(destination, last);
+  const reversedCost = distance(origin, last) + distance(destination, first);
+
+  return reversedCost < normalCost ? [...coordinates].reverse() : coordinates;
+}
+
 export interface ListLocationDto {
   id: string;
   name: string;
@@ -454,7 +471,11 @@ export class LocationService {
       : (p.points as { coordinates: [number, number][] }).coordinates;
     // Normalize to [lng, lat], using the requested destination to disambiguate
     // Vietmap's [lat, lng] response from its GeoJSON [lng, lat] response.
-    const polyline = normalizeRouteCoordinates(rawCoords, { lat: loc.lat, lng: loc.lng });
+    const polyline = orientRouteCoordinates(
+      normalizeRouteCoordinates(rawCoords, { lat: loc.lat, lng: loc.lng }),
+      { lat: fromLat, lng: fromLng },
+      { lat: loc.lat, lng: loc.lng },
+    );
     const routeEndpoint = polyline[polyline.length - 1];
 
     // sign code → icon + mô tả tiếng Việt (theo Vietmap navigation symbol)
