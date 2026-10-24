@@ -26,6 +26,8 @@ export default function LocationDetailPage() {
   const [loadState, setLoadState] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [reportOpen, setReportOpen] = useState(false);
@@ -44,25 +46,42 @@ export default function LocationDetailPage() {
     setLoadState('loading');
     setLoadError(null);
     setLoc(null);
-    try {
-      const [data, rv] = await Promise.all([
-        api.get<LocationDetail>(`/locations/${id}`),
-        api.get<{ items: Review[] }>(`/reviews?locationId=${id}&limit=20`),
-      ]);
-      if (currentRequest === requestId.current) {
+    setReviews([]);
+    setReviewsLoading(true);
+    setReviewsError(null);
+
+    const locationRequest = api
+      .get<LocationDetail>(`/locations/${id}`)
+      .then((data) => {
+        if (currentRequest !== requestId.current) return;
         setLoc(data);
-        setReviews(rv.items);
         setLoadState('success');
-      }
-    } catch (error) {
-      if (currentRequest !== requestId.current) return;
-      if (error instanceof ApiError && error.status === 404) {
-        setLoadState('empty');
-        return;
-      }
-      setLoadState('error');
-      setLoadError(error instanceof Error ? error.message : 'Không thể tải địa điểm.');
-    }
+      })
+      .catch((error) => {
+        if (currentRequest !== requestId.current) return;
+        if (error instanceof ApiError && error.status === 404) {
+          setLoadState('empty');
+          return;
+        }
+        setLoadState('error');
+        setLoadError(error instanceof Error ? error.message : 'Không thể tải địa điểm.');
+      });
+
+    const reviewsRequest = api
+      .get<{ items: Review[] }>(`/reviews?locationId=${id}&limit=20`)
+      .then((rv) => {
+        if (currentRequest === requestId.current) setReviews(rv.items);
+      })
+      .catch((error) => {
+        if (currentRequest === requestId.current) {
+          setReviewsError(error instanceof Error ? error.message : 'Không thể tải đánh giá.');
+        }
+      })
+      .finally(() => {
+        if (currentRequest === requestId.current) setReviewsLoading(false);
+      });
+
+    await Promise.all([locationRequest, reviewsRequest]);
   }, [id]);
 
   useEffect(() => {
@@ -341,6 +360,8 @@ export default function LocationDetailPage() {
           <p className="chip bg-success/10 text-success mb-4">Bạn đã đánh giá địa điểm này ({loc.myReview.rating}★).</p>
         )}
 
+        {reviewsLoading && <p className="text-sm text-muted">Đang tải đánh giá…</p>}
+        {reviewsError && <p className="text-sm text-error" role="alert">{reviewsError}</p>}
         <div className="space-y-4">
           {reviews.map((r) => {
             const mine = !!user && r.user.id === user.id;

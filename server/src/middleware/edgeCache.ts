@@ -13,7 +13,7 @@ export function edgeCache(sMaxAgeSeconds: number, swrSeconds?: number) {
     if (!req.headers.authorization) {
       res.setHeader(
         'Cache-Control',
-        `public, s-maxage=${sMaxAgeSeconds}, stale-while-revalidate=${swr}`,
+        `public, max-age=${Math.min(sMaxAgeSeconds, 15)}, s-maxage=${sMaxAgeSeconds}, stale-while-revalidate=${swr}`,
       );
       res.setHeader('Vary', 'Authorization');
     } else {

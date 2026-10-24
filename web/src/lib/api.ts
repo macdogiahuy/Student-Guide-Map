@@ -3,6 +3,7 @@ import type { Envelope } from './types';
 const BASE = '/api/v1';
 
 let accessToken: string | null = null;
+const inFlightGets = new Map<string, Promise<unknown>>();
 export const setToken = (t: string | null) => {
   accessToken = t;
 };
@@ -86,7 +87,21 @@ async function request<T>(
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path),
+  get: <T>(path: string) => {
+    const existing = inFlightGets.get(path);
+    if (existing) return existing as Promise<T>;
+    const promise = request<T>(path);
+    inFlightGets.set(path, promise);
+    void promise.then(
+      () => {
+        if (inFlightGets.get(path) === promise) inFlightGets.delete(path);
+      },
+      () => {
+        if (inFlightGets.get(path) === promise) inFlightGets.delete(path);
+      },
+    );
+    return promise;
+  },
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),

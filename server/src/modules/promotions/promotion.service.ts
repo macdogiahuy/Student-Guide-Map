@@ -8,14 +8,6 @@ type CreateInput = z.infer<typeof createPromotionSchema>;
 type UpdateInput = z.infer<typeof updatePromotionSchema>;
 
 export class PromotionService {
-  /** Flip overdue ACTIVE promotions to EXPIRED (cheap batch). */
-  private async expireStale() {
-    await prisma.promotion.updateMany({
-      where: { status: 'ACTIVE', endDate: { lt: new Date() } },
-      data: { status: 'EXPIRED' },
-    });
-  }
-
   async listPublic(params: {
     category?: string;
     locationId?: string;
@@ -23,7 +15,6 @@ export class PromotionService {
     page: number;
     limit: number;
   }) {
-    await this.expireStale();
     const where = {
       status: 'ACTIVE' as const,
       startDate: { lte: new Date() },
@@ -84,7 +75,6 @@ export class PromotionService {
   }
 
   async getPublic(id: string) {
-    await this.expireStale();
     const promo = await prisma.promotion.findUnique({
       where: { id },
       include: {

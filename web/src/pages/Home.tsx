@@ -24,6 +24,15 @@ const RADII = [
   { value: '10', label: '≤ 10 km' },
 ] as const;
 
+type LocationCacheEntry = {
+  items: LocationListItem[];
+  total: number;
+  expiresAt: number;
+};
+
+const LOCATION_CACHE_TTL = 60_000;
+const locationsCache = new Map<string, LocationCacheEntry>();
+
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -49,9 +58,6 @@ export default function Home() {
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [favoriteMessage, setFavoriteMessage] = useState<string | null>(null);
   const favoriteRequests = useRef(new Set<string>());
-  const locationsCache = useRef(
-    new Map<string, { items: LocationListItem[]; total: number }>(),
-  );
   const requestId = useRef(0);
   const limit = 12;
 
@@ -78,25 +84,49 @@ export default function Home() {
     params.set('lng', String(center.lng));
     params.set('page', String(page));
     params.set('limit', String(limit));
-    const cacheKey = params.toString();
-    const cached = locationsCache.current.get(cacheKey);
-    if (cached) {
+    const cacheKey = `${user?.id ?? 'anonymous'}:${params.toString()}`;
+    const cached = locationsCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
       setItems(cached.items);
       setTotal(cached.total);
       setLoading(false);
       return;
     }
+    if (cached) locationsCache.delete(cacheKey);
 
     try {
       const data = await api.get<Paged<LocationListItem>>(`/locations?${params}`);
       if (currentRequest !== requestId.current) return;
-      locationsCache.current.set(cacheKey, { items: data.items, total: data.meta.total });
+      locationsCache.set(cacheKey, {
+        items: data.items,
+        total: data.meta.total,
+        expiresAt: Date.now() + LOCATION_CACHE_TTL,
+      });
       setItems(data.items);
       setTotal(data.meta.total);
+
+      if (page < Math.ceil(data.meta.total / limit)) {
+        const nextParams = new URLSearchParams(params);
+        nextParams.set('page', String(page + 1));
+        const nextKey = `${user?.id ?? 'anonymous'}:${nextParams.toString()}`;
+        const nextCached = locationsCache.get(nextKey);
+        if (!nextCached || nextCached.expiresAt <= Date.now()) {
+          void api
+            .get<Paged<LocationListItem>>(`/locations?${nextParams}`)
+            .then((nextData) => {
+              locationsCache.set(nextKey, {
+                items: nextData.items,
+                total: nextData.meta.total,
+                expiresAt: Date.now() + LOCATION_CACHE_TTL,
+              });
+            })
+            .catch(() => undefined);
+        }
+      }
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
     }
-  }, [searchQuery, category, sort, openOnly, promoOnly, minRating, radius, center, page]);
+  }, [searchQuery, category, sort, openOnly, promoOnly, minRating, radius, center, page, user?.id]);
 
   useEffect(() => {
     const t = setTimeout(() => setSearchQuery(q), 200);
@@ -129,9 +159,9 @@ export default function Home() {
     favoriteRequests.current.add(loc.id);
     const next = !loc.isFavorite;
     setItems((prev) => prev.map((p) => (p.id === loc.id ? { ...p, isFavorite: next } : p)));
-    for (const [key, cached] of locationsCache.current) {
+    for (const [key, cached] of locationsCache) {
       if (cached.items.some((item) => item.id === loc.id)) {
-        locationsCache.current.set(key, {
+        locationsCache.set(key, {
           ...cached,
           items: cached.items.map((item) =>
             item.id === loc.id ? { ...item, isFavorite: next } : item,
@@ -144,9 +174,9 @@ export default function Home() {
       else await api.del(`/favorites/${loc.id}`);
     } catch (error) {
       setItems((prev) => prev.map((p) => (p.id === loc.id ? { ...p, isFavorite: loc.isFavorite } : p)));
-      for (const [key, cached] of locationsCache.current) {
+      for (const [key, cached] of locationsCache) {
         if (cached.items.some((item) => item.id === loc.id)) {
-          locationsCache.current.set(key, {
+          locationsCache.set(key, {
             ...cached,
             items: cached.items.map((item) =>
               item.id === loc.id ? { ...item, isFavorite: loc.isFavorite } : item,
