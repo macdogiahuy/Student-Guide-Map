@@ -46,6 +46,8 @@ export default function Home() {
   const [selected, setSelected] = useState<string | null>(null);
   const [cats, setCats] = useState<Category[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(true);
+  const [favoriteMessage, setFavoriteMessage] = useState<string | null>(null);
+  const favoriteRequests = useRef(new Set<string>());
   const limit = 12;
 
   useEffect(() => {
@@ -102,12 +104,18 @@ export default function Home() {
       navigate('/login');
       return;
     }
-    if (loc.isFavorite) {
-      await api.del(`/favorites/${loc.id}`).catch(() => undefined);
-      setItems((prev) => prev.map((p) => (p.id === loc.id ? { ...p, isFavorite: false } : p)));
-    } else {
-      await api.post(`/favorites/${loc.id}`).catch(() => undefined);
-      setItems((prev) => prev.map((p) => (p.id === loc.id ? { ...p, isFavorite: true } : p)));
+    if (favoriteRequests.current.has(loc.id)) return;
+    favoriteRequests.current.add(loc.id);
+    const next = !loc.isFavorite;
+    setItems((prev) => prev.map((p) => (p.id === loc.id ? { ...p, isFavorite: next } : p)));
+    try {
+      if (next) await api.post(`/favorites/${loc.id}`);
+      else await api.del(`/favorites/${loc.id}`);
+    } catch (error) {
+      setItems((prev) => prev.map((p) => (p.id === loc.id ? { ...p, isFavorite: loc.isFavorite } : p)));
+      setFavoriteMessage(error instanceof Error ? error.message : 'Không thể cập nhật yêu thích.');
+    } finally {
+      favoriteRequests.current.delete(loc.id);
     }
   };
 
@@ -116,6 +124,11 @@ export default function Home() {
 
   return (
     <div>
+      {favoriteMessage && (
+        <div role="alert" className="mx-auto max-w-6xl px-4 pt-3 text-sm text-error">
+          {favoriteMessage}
+        </div>
+      )}
       {/* Hero */}
       <section className="bg-primary-600 text-white">
         <div className="mx-auto max-w-6xl px-4 py-10 md:py-14">

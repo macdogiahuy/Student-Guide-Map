@@ -1,6 +1,6 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api } from '../lib/api';
+import { ApiError, api } from '../lib/api';
 import type { LocationDetail, Review } from '../lib/types';
 import { useAuth } from '../context/AuthContext';
 import { OpenBadge } from '../components/LocationCard';
@@ -23,6 +23,8 @@ export default function LocationDetailPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loc, setLoc] = useState<LocationDetail | null>(null);
+  const [loadState, setLoadState] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -34,30 +36,71 @@ export default function LocationDetailPage() {
   const [editRating, setEditRating] = useState(5);
   const [editComment, setEditComment] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const requestId = useRef(0);
+  const favoritePending = useRef(false);
 
   const load = useCallback(async () => {
-    // Detail + reviews are independent — fetch in parallel instead of waterfall.
-    const [data, rv] = await Promise.all([
-      api.get<LocationDetail>(`/locations/${id}`),
-      api.get<{ items: Review[] }>(`/reviews?locationId=${id}&limit=20`),
-    ]);
-    setLoc(data);
-    setReviews(rv.items);
+    const currentRequest = ++requestId.current;
+    setLoadState('loading');
+    setLoadError(null);
+    setLoc(null);
+    try {
+      const [data, rv] = await Promise.all([
+        api.get<LocationDetail>(`/locations/${id}`),
+        api.get<{ items: Review[] }>(`/reviews?locationId=${id}&limit=20`),
+      ]);
+      if (currentRequest === requestId.current) {
+        setLoc(data);
+        setReviews(rv.items);
+        setLoadState('success');
+      }
+    } catch (error) {
+      if (currentRequest !== requestId.current) return;
+      if (error instanceof ApiError && error.status === 404) {
+        setLoadState('empty');
+        return;
+      }
+      setLoadState('error');
+      setLoadError(error instanceof Error ? error.message : 'Không thể tải địa điểm.');
+    }
   }, [id]);
 
   useEffect(() => {
-    load().catch(() => setLoc(null));
+    let active = true;
+    void (async () => {
+      await load();
+      if (!active) return;
+    })();
+    return () => {
+      active = false;
+    };
   }, [load]);
 
-  if (!loc) {
+  if (loadState === 'idle' || loadState === 'loading') {
+    return <div className="py-24 text-center text-muted" role="status">Đang tải địa điểm…</div>;
+  }
+  if (loadState === 'empty') {
     return <div className="py-24 text-center text-muted">Không tìm thấy địa điểm.</div>;
+  }
+  if (loadState === 'error' || !loc) {
+    return <div className="py-24 text-center text-error" role="alert">{loadError ?? 'Không thể tải địa điểm.'}</div>;
   }
 
   const toggleFav = async () => {
     if (!user) return navigate('/login');
-    if (loc.isFavorite) await api.del(`/favorites/${loc.id}`);
-    else await api.post(`/favorites/${loc.id}`);
-    setLoc({ ...loc, isFavorite: !loc.isFavorite });
+    if (favoritePending.current) return;
+    favoritePending.current = true;
+    const previous = loc.isFavorite;
+    setLoc({ ...loc, isFavorite: !previous });
+    try {
+      if (previous) await api.del(`/favorites/${loc.id}`);
+      else await api.post(`/favorites/${loc.id}`);
+    } catch (error) {
+      setLoc({ ...loc, isFavorite: previous });
+      setMsg(error instanceof Error ? error.message : 'Không thể cập nhật yêu thích.');
+    } finally {
+      favoritePending.current = false;
+    }
   };
 
   const submitReview = async () => {
@@ -131,7 +174,7 @@ export default function LocationDetailPage() {
             {img.url ? (
               <img src={img.url} alt={loc.name} className="size-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
             ) : (
-              <div className="size-full grid place-items-center text-3xl">{loc.category.icon || '📍'}</div>
+              <div className="size-full grid place-items-center text-3xl">{loc.category.icon || '•'}</div>
             )}
           </div>
         ))}
@@ -149,11 +192,18 @@ export default function LocationDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="btn-ghost" onClick={toggleFav}>
-            {loc.isFavorite ? '❤️ Đã lưu' : '🤍 Yêu thích'}
+          <button
+            className={`btn-ghost ${loc.isFavorite ? 'text-error' : ''}`}
+            onClick={toggleFav}
+            aria-pressed={loc.isFavorite}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 fill-current">
+              <path d="M12 21s-7-4.35-9.5-8.5C.6 8.77 2.35 5 6 5c2.04 0 3.42 1.18 4 2.24C10.58 6.18 11.96 5 14 5c3.65 0 5.4 3.77 3.5 7.5C19 16.65 12 21 12 21Z" />
+            </svg>
+            {loc.isFavorite ? 'Đã lưu' : 'Yêu thích'}
           </button>
           <button className="btn-primary" onClick={() => navigate(`/directions/${loc.id}`)}>
-            🧭 Chỉ đường
+            Chỉ đường
           </button>
         </div>
       </div>
@@ -164,10 +214,10 @@ export default function LocationDetailPage() {
         {/* Info */}
         <div className="card p-4 space-y-3 text-sm">
           <h2 className="font-bold text-base">Thông tin</h2>
-          <p>📍 {loc.address}</p>
-          {loc.phone && <p>📞 <a href={`tel:${loc.phone}`} className="text-primary-600">{loc.phone}</a></p>}
-          {loc.priceRange && <p>💰 {loc.priceRange}</p>}
-          <p>🚶 Cách bạn {loc.distanceLabel ?? '—'}{loc.walkingMinutes ? ` (~${loc.walkingMinutes} phút đi bộ)` : ''}</p>
+          <p>{loc.address}</p>
+          {loc.phone && <p><a href={`tel:${loc.phone}`} className="text-primary-600">{loc.phone}</a></p>}
+          {loc.priceRange && <p>{loc.priceRange}</p>}
+          <p>Cách bạn {loc.distanceLabel ?? '—'}{loc.walkingMinutes ? ` (~${loc.walkingMinutes} phút đi bộ)` : ''}</p>
 
           <h3 className="font-bold pt-2">Giờ mở cửa</h3>
           <table className="w-full text-xs">
@@ -203,7 +253,7 @@ export default function LocationDetailPage() {
 
           <div className="pt-2">
             <button className="text-error font-semibold text-xs" onClick={() => setReportOpen(true)}>
-              🚩 Báo cáo thông tin sai
+              Báo cáo thông tin sai
             </button>
           </div>
         </div>
@@ -212,14 +262,14 @@ export default function LocationDetailPage() {
         <div className="space-y-4">
           <Suspense fallback={<div className="grid place-items-center bg-surface-2 rounded-2xl h-64 text-sm text-muted">Đang tải bản đồ…</div>}>
             <MapView
-              pins={[{ id: loc.id, lng: loc.lng, lat: loc.lat, label: '📍' }]}
+              pins={[{ id: loc.id, lng: loc.lng, lat: loc.lat, label: '•' }]}
               selectedId={loc.id}
               className="h-64"
             />
           </Suspense>
           {loc.promotions.length > 0 && (
             <div className="card p-4">
-              <h2 className="font-bold text-base mb-2">🎉 Ưu đãi đang áp dụng</h2>
+              <h2 className="font-bold text-base mb-2">Ưu đãi đang áp dụng</h2>
               {loc.promotions.map((p) => (
                 <div key={p.id} className="border-b border-line last:border-0 py-2">
                   <p className="font-semibold text-sm">{p.title}</p>

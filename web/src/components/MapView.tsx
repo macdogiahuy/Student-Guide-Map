@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import vietmapgl from '@vietmap/vietmap-gl-js/dist/vietmap-gl';
 import '@vietmap/vietmap-gl-js/dist/vietmap-gl.css';
 
@@ -48,6 +48,7 @@ export default function MapView({
   showUserLocation = true,
   route,
 }: Props) {
+  const [mapError, setMapError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<vietmapgl.Map | null>(null);
   const markersRef = useRef<Record<string, vietmapgl.Marker>>({});
@@ -58,7 +59,11 @@ export default function MapView({
   moveRef.current = onMapMove;
 
   useEffect(() => {
-    if (!VIETMAP_KEY || !containerRef.current || mapRef.current) return;
+    if (!VIETMAP_KEY) {
+      setMapError('Bản đồ chưa được cấu hình API key Vietmap.');
+      return;
+    }
+    if (!containerRef.current || mapRef.current) return;
     const map = new vietmapgl.Map({
       container: containerRef.current,
       style: viaProxy(VIETMAP_STYLE),
@@ -68,6 +73,8 @@ export default function MapView({
       transformRequest: (url: string) => ({ url: viaProxy(url) }),
     });
     map.addControl(new vietmapgl.NavigationControl(), 'top-right');
+    const onError = () => setMapError('Không thể tải bản đồ. Vui lòng thử lại sau.');
+    map.on('error', onError);
     map.on('moveend', () => {
       const c = map.getCenter();
       moveRef.current?.({ lat: c.lat, lng: c.lng });
@@ -79,6 +86,7 @@ export default function MapView({
       } catch {
         /* AbortError from in-flight tile fetches on unmount — ignore */
       }
+      map.off('error', onError);
       if (mapRef.current === map) mapRef.current = null;
       markersRef.current = {};
       routeRef.current = null;
@@ -282,5 +290,14 @@ export default function MapView({
     );
   }
 
-  return <div ref={containerRef} className={`rounded-2xl overflow-hidden ${className}`} />;
+  return (
+    <div className={`relative rounded-2xl overflow-hidden ${className}`}>
+      <div ref={containerRef} className="size-full" />
+      {mapError && (
+        <div className="absolute inset-0 grid place-items-center bg-surface-2 p-4 text-center text-sm text-error" role="alert">
+          {mapError}
+        </div>
+      )}
+    </div>
+  );
 }
