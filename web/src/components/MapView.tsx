@@ -291,7 +291,7 @@ export default function MapView({
   }
 
   return (
-    <div className={`relative rounded-2xl overflow-hidden ${className}`}>
+    <div className={`map-interaction relative rounded-2xl overflow-hidden ${className}`}>
       <div ref={containerRef} className="size-full" />
       {mapError && (
         <div className="absolute inset-0 grid place-items-center bg-surface-2 p-4 text-center text-sm text-error" role="alert">

@@ -1,10 +1,10 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api } from '../lib/api';
-import type { Category, LocationListItem, Paged } from '../lib/types';
-import LocationCard from '../components/LocationCard';
-import { DEFAULT_CENTER } from '../lib/center';
-import { useAuth } from '../context/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import LocationCard from '../components/LocationCard';
+import { useAuth } from '../context/AuthContext';
+import { api } from '../lib/api';
+import { DEFAULT_CENTER } from '../lib/center';
+import type { Category, LocationListItem, Paged } from '../lib/types';
 
 // vietmap-gl is heavy (~700KB) — split it out of the main bundle.
 const MapView = lazy(() => import('../components/MapView'));
@@ -121,6 +121,11 @@ export default function Home() {
 
   const debounceRef = useRef(q);
   debounceRef.current = q;
+
+  const changeView = (nextView: 'list' | 'map') => {
+    setView(nextView);
+    navigate(nextView === 'map' ? '/?view=map' : '/', { replace: true });
+  };
 
   return (
     <div>
@@ -257,7 +262,7 @@ export default function Home() {
             type="button"
             className={`flex-1 px-3 py-2 text-sm font-semibold md:flex-none ${view === 'list' ? 'bg-primary-50 text-primary-600' : 'bg-surface text-muted'}`}
             aria-pressed={view === 'list'}
-            onClick={() => setView('list')}
+            onClick={() => changeView('list')}
           >
             Danh sách
           </button>
@@ -265,7 +270,7 @@ export default function Home() {
             type="button"
             className={`flex-1 px-3 py-2 text-sm font-semibold md:flex-none ${view === 'map' ? 'bg-primary-50 text-primary-600' : 'bg-surface text-muted'}`}
             aria-pressed={view === 'map'}
-            onClick={() => setView('map')}
+            onClick={() => changeView('map')}
           >
             Bản đồ
           </button>
@@ -306,12 +311,12 @@ export default function Home() {
             )}
           </>
         ) : (
-          <div className="grid lg:grid-cols-5 gap-4">
-            <div className="lg:col-span-2 max-h-[70vh] overflow-y-auto space-y-3">
+          <div className="home-map-layout">
+            <div className="home-map-results space-y-3" aria-label="Danh sách địa điểm trên bản đồ">
               {items.map((loc) => (
                 <button
                   key={loc.id}
-                  className={`w-full text-left card p-3 hover:shadow-md ${selected === loc.id ? 'ring-2 ring-primary' : ''}`}
+                  className={`home-map-result w-full text-left card p-3 hover:shadow-md ${selected === loc.id ? 'ring-2 ring-primary' : ''}`}
                   onClick={() => setSelected(loc.id)}
                 >
                   <div className="flex justify-between gap-2">
@@ -325,16 +330,16 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            <div className="lg:col-span-3">
+            <div className="home-map-canvas">
               <Suspense
-                fallback={<div className="grid place-items-center bg-surface-2 rounded-2xl h-[70vh] text-sm text-muted">Đang tải bản đồ…</div>}
+                fallback={<div className="grid place-items-center bg-surface-2 rounded-2xl home-map-height text-sm text-muted">Đang tải bản đồ…</div>}
               >
                 <MapView
                   pins={pins}
                   selectedId={selected}
                   onPinClick={(id) => setSelected(id)}
                   onMapMove={setCenter}
-                  className="h-[70vh]"
+                  className="home-map-height"
                 />
               </Suspense>
               {selected && (

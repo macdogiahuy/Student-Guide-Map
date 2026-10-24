@@ -292,6 +292,36 @@ main {
   grid-column: 1 / -1;
 }
 
+.map-interaction {
+  touch-action: pan-x pan-y pinch-zoom;
+  overscroll-behavior: contain;
+}
+
+.home-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(20rem, 3fr);
+  gap: 1rem;
+}
+
+.home-map-results {
+  max-height: 70vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.home-map-canvas {
+  min-width: 0;
+}
+
+.home-map-height {
+  height: 70vh;
+  min-height: 26rem;
+}
+
 @media (max-width: 767px) {
   body {
     padding-bottom: 4rem;
@@ -354,6 +384,38 @@ main {
 
   .dashboard-section {
     padding: 1rem;
+  }
+
+  .home-map-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .home-map-canvas {
+    order: -1;
+  }
+
+  .home-map-height {
+    height: min(52vh, 32rem);
+    min-height: 20rem;
+  }
+
+  .home-map-results {
+    max-height: min(34vh, 22rem);
+    padding-right: 0.125rem;
+  }
+
+  .home-map-result {
+    padding: 0.625rem;
+  }
+
+  .location-card-media {
+    aspect-ratio: 5 / 2;
+  }
+
+  .location-card-content {
+    padding: 0.75rem;
   }
 }
 

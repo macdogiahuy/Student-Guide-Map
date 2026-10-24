@@ -41,7 +41,7 @@ export default function LocationCard({
         className="block rounded-[inherit] focus-visible:ring-2 focus-visible:ring-primary"
         aria-label={`Xem chi tiết ${loc.name}`}
       >
-        <div className="relative aspect-[16/9] bg-surface-2">
+        <div className="location-card-media relative aspect-[16/9] bg-surface-2">
           {loc.imageUrl ? (
             <img
               src={loc.imageUrl}
@@ -56,7 +56,7 @@ export default function LocationCard({
             <span className="chip absolute top-2 left-2 bg-accent text-white">🎉 {loc.promoTitle}</span>
           )}
         </div>
-        <div className="p-3.5 space-y-1.5">
+        <div className="location-card-content p-3.5 space-y-1.5">
           <div className="flex items-start justify-between gap-2">
             <h2 className="font-bold hover:text-primary-600 line-clamp-1">{loc.name}</h2>
             <Stars value={loc.ratingAvg} />
