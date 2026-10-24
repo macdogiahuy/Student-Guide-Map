@@ -32,6 +32,7 @@ export default function Home() {
     searchParams.get('view') === 'map' ? 'map' : 'list',
   );
   const [q, setQ] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [category, setCategory] = useState('');
   const [sort, setSort] = useState<(typeof SORTS)[number]['value']>('nearest');
   const [openOnly, setOpenOnly] = useState(false);
@@ -48,6 +49,10 @@ export default function Home() {
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [favoriteMessage, setFavoriteMessage] = useState<string | null>(null);
   const favoriteRequests = useRef(new Set<string>());
+  const locationsCache = useRef(
+    new Map<string, { items: LocationListItem[]; total: number }>(),
+  );
+  const requestId = useRef(0);
   const limit = 12;
 
   useEffect(() => {
@@ -59,31 +64,47 @@ export default function Home() {
   }, []);
 
   const load = useCallback(async () => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
+    const params = new URLSearchParams();
+    if (searchQuery) params.set('q', searchQuery);
+    if (category) params.set('category', category);
+    if (sort) params.set('sort', sort);
+    if (openOnly) params.set('open', 'true');
+    if (promoOnly) params.set('hasPromotion', 'true');
+    if (minRating) params.set('minRating', String(minRating));
+    if (radius) params.set('radiusKm', radius);
+    params.set('lat', String(center.lat));
+    params.set('lng', String(center.lng));
+    params.set('page', String(page));
+    params.set('limit', String(limit));
+    const cacheKey = params.toString();
+    const cached = locationsCache.current.get(cacheKey);
+    if (cached) {
+      setItems(cached.items);
+      setTotal(cached.total);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const params = new URLSearchParams();
-      if (q) params.set('q', q);
-      if (category) params.set('category', category);
-      if (sort) params.set('sort', sort);
-      if (openOnly) params.set('open', 'true');
-      if (promoOnly) params.set('hasPromotion', 'true');
-      if (minRating) params.set('minRating', String(minRating));
-      if (radius) params.set('radiusKm', radius);
-      params.set('lat', String(center.lat));
-      params.set('lng', String(center.lng));
-      params.set('page', String(page));
-      params.set('limit', String(limit));
       const data = await api.get<Paged<LocationListItem>>(`/locations?${params}`);
+      if (currentRequest !== requestId.current) return;
+      locationsCache.current.set(cacheKey, { items: data.items, total: data.meta.total });
       setItems(data.items);
       setTotal(data.meta.total);
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
-  }, [q, category, sort, openOnly, promoOnly, minRating, radius, center, page]);
+  }, [searchQuery, category, sort, openOnly, promoOnly, minRating, radius, center, page]);
 
   useEffect(() => {
-    const t = setTimeout(load, 250);
+    const t = setTimeout(() => setSearchQuery(q), 200);
     return () => clearTimeout(t);
+  }, [q]);
+
+  useEffect(() => {
+    void load();
   }, [load]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -108,19 +129,36 @@ export default function Home() {
     favoriteRequests.current.add(loc.id);
     const next = !loc.isFavorite;
     setItems((prev) => prev.map((p) => (p.id === loc.id ? { ...p, isFavorite: next } : p)));
+    for (const [key, cached] of locationsCache.current) {
+      if (cached.items.some((item) => item.id === loc.id)) {
+        locationsCache.current.set(key, {
+          ...cached,
+          items: cached.items.map((item) =>
+            item.id === loc.id ? { ...item, isFavorite: next } : item,
+          ),
+        });
+      }
+    }
     try {
       if (next) await api.post(`/favorites/${loc.id}`);
       else await api.del(`/favorites/${loc.id}`);
     } catch (error) {
       setItems((prev) => prev.map((p) => (p.id === loc.id ? { ...p, isFavorite: loc.isFavorite } : p)));
+      for (const [key, cached] of locationsCache.current) {
+        if (cached.items.some((item) => item.id === loc.id)) {
+          locationsCache.current.set(key, {
+            ...cached,
+            items: cached.items.map((item) =>
+              item.id === loc.id ? { ...item, isFavorite: loc.isFavorite } : item,
+            ),
+          });
+        }
+      }
       setFavoriteMessage(error instanceof Error ? error.message : 'Không thể cập nhật yêu thích.');
     } finally {
       favoriteRequests.current.delete(loc.id);
     }
   };
-
-  const debounceRef = useRef(q);
-  debounceRef.current = q;
 
   const changeView = (nextView: 'list' | 'map') => {
     setView(nextView);
@@ -153,7 +191,11 @@ export default function Home() {
                 setPage(1);
               }}
             />
-            <button className="btn bg-secondary text-white" type="button" onClick={load}>
+            <button
+              className="btn bg-secondary text-white"
+              type="button"
+              onClick={() => setSearchQuery(q)}
+            >
               Tìm kiếm
             </button>
           </div>
